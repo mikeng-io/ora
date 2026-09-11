@@ -42,11 +42,29 @@ The three compose: 4C is a CMS act over a claim; Grounding is CMS over
 evidence. When a model judges badly, **read its input before rewriting its
 instruction** (Nora's measured lesson, `~/.claude/CMS.md`).
 
+## What Ora is, and how strict to be
+
+Ora is an **MVP for a demo**, not Nora. The thinking discipline above is
+not negotiable — it is how a wrong claim gets caught before it reaches the
+stage. The *process* around it is MVP-grade, deliberately:
+
+| keep (it protects the demo) | drop (it protects a decade, which Ora does not have) |
+|---|---|
+| CMS · Grounding · 4C on every conclusion | release fragments, ADRs, decision-index numbering beyond `design/06` |
+| a test for every **brake** (allowlist, own-send drop, fail-closed, ungrounded-speak → hold) and every **demo step** (journey) — proved by reverting the line | mutation tables, architecture tests, doc-reference gates, coverage targets |
+| `MANIFEST.md` appended as you go (eligibility evidence) | one-Opus-reviewer-per-change; only `design/07` items 6–7 get a review |
+| `model_calls` + `gate_log` + the console grammar (the trace *is* the ops) | metrics, alerting, retention, backups, dashboards |
+| `ruff` + `pytest` before a commit | mypy strictness, import contracts, CI |
+| one commit per item, plain Conventional Commit subject | footers, PR bodies, merge messages |
+
+If a rule from Nora's `AGENTS.md` is not in this file, it does not apply.
+When in doubt: does skipping it risk the demo lying? If no, skip it.
+
 ## Repo rules (Ora only — different from Nora)
 
 - **Work on `master`. No worktrees, no branches, no PRs.** One commit per
-  item, Conventional Commits, body names the manifest line. Never squash,
-  never amend a pushed commit, never `reset`.
+  item, Conventional Commit subject, body names the manifest line. Never
+  `reset`; amending the last local commit is fine.
 - **Never** write under `~/Workplace/nora`; never change norty's config,
   compose or `.env`. Read Nora's tree to copy from; recompute every sha you
   cite.
@@ -72,9 +90,10 @@ instruction** (Nora's measured lesson, `~/.claude/CMS.md`).
 
 ## Verification discipline
 
-- **Prove a fix by reverting it:** a behaviour exists when removing its
-  line reddens a named test. "Tests green" is not evidence of anything in
-  particular.
+- **Prove a brake by reverting it:** the allowlist, the own-send drop, the
+  fail-closed paths and the ungrounded-speak downgrade each have one test
+  that reddens when the line is removed. Everything else: a test if it is
+  cheap, none if it is not.
 - Live checks name their target (`norty` bridges, `ora-verify` Honcho
   workspace, Ollama Cloud) and their result, in the commit body.
 - `ruff check .` and `pytest -q` before every commit; the journey test's six
