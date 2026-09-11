@@ -81,11 +81,20 @@ def join_media_into_body(body: str, shortid: str, title: str, description: str) 
     A9); this replaces it with the comprehended join for one render call,
     without mutating the stored row. A placeholder that is not found —
     never written, or a shortid mismatch — leaves `body` untouched rather
-    than silently duplicating a marker."""
+    than silently duplicating a marker.
+
+    `count=1`, not every occurrence: this is the placeholder OBSERVE
+    itself appended, always exactly one per image (only the first image
+    of a message is ever captured — `observe_signal._first_image`), so
+    one substitution is what a correct row needs. It is not a defence
+    against a caption that happens to contain the literal text
+    `[image abc123]` typed by a person with the same shortid — that
+    residual case (Opus review) is cosmetic at 6 hex chars and would
+    need the placeholder's position recorded to close properly."""
     bare = f"[image {shortid}]"
     if bare not in body:
         return body
-    return body.replace(bare, render_media_marker(shortid, title, description))
+    return body.replace(bare, render_media_marker(shortid, title, description), 1)
 
 
 @dataclass(frozen=True)

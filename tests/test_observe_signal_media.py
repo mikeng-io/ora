@@ -4,7 +4,10 @@ network, no Postgres (a RecordingStore fake stands in)."""
 
 from __future__ import annotations
 
+import base64
 import json
+import struct
+import zlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,6 +26,22 @@ _PNG_BASE64 = (
 )
 
 
+def _solid_png_base64(rgb: tuple[int, int, int]) -> str:
+    """A second, DIFFERENT valid PNG (distinct bytes -> distinct sha256),
+    for tests that need two genuinely different images."""
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0))
+    row = bytes(rgb) * 4
+    raw = (b"\x00" + row) * 4
+    idat = chunk(b"IDAT", zlib.compress(raw, 9))
+    png = sig + ihdr + idat + chunk(b"IEND", b"")
+    return base64.b64encode(png).decode()
+
+
 def _config() -> Config:
     return Config(
         env=Env(signal_account=OWN_ACCOUNT, signal_base_url="http://fake-signal"),
@@ -36,13 +55,13 @@ def _sink(tmp_path) -> LogSink:
     return LogSink(json_path=tmp_path / "ora.log", console=Console(quiet=True))
 
 
-def _image_event(text: str = "") -> dict:
+def _image_event(text: str = "", *, att_id: str = "att-1", size: int = 68) -> dict:
     data: dict[str, Any] = {
         "message": text,
         "timestamp": 1_757_600_000_000,
         "groupInfo": {"groupId": LISTED_GROUP},
         "attachments": [
-            {"id": "att-1", "contentType": "image/png", "size": 68, "filename": "photo.png"}
+            {"id": att_id, "contentType": "image/png", "size": size, "filename": "photo.png"}
         ],
     }
     return {
@@ -73,8 +92,9 @@ class RecordingStore:
                 },
             )
         elif "UPDATE media_objects" in query:
-            title, description, content, describe_model, sha256 = args
+            title, description, content, describe_model, describe_call_id, sha256 = args
             row = self.media_objects[sha256]
+            row["describe_call_id"] = describe_call_id
             row.update(
                 title=title, description=description, content=content,
                 comprehended=True, describe_model=describe_model,
@@ -284,3 +304,164 @@ async def test_second_message_with_same_image_is_not_recomprehended(tmp_path, mo
     await observer.handle_event(_image_event("second"))
 
     assert len(completions.calls) == 1  # comprehended once, not twice
+
+
+class _PerAttachmentSession:
+    """`getAttachment`'s response depends on which attachment id was
+    asked for — needed to fake TWO different images in one test."""
+
+    def __init__(self, payload_by_id: dict[str, dict]) -> None:
+        self._payload_by_id = payload_by_id
+        self._next_payload: dict | None = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return None
+
+    def post(self, *args, **kwargs):
+        body = kwargs.get("json") or {}
+        att_id = (body.get("params") or {}).get("id", "")
+        self._next_payload = self._payload_by_id.get(att_id, {})
+        return self
+
+    status = 200
+
+    async def json(self):
+        return self._next_payload
+
+
+async def test_two_different_images_in_succession_each_get_their_own_row(
+    tmp_path, monkeypatch
+) -> None:
+    """The busy-content-addressing test above proves the SAME image is
+    never re-comprehended; this proves two DIFFERENT images do not
+    collide with each other (distinct sha256, both comprehended)."""
+    fake_session = _PerAttachmentSession(
+        {
+            "att-1": {"result": _PNG_BASE64},
+            "att-2": {"result": _solid_png_base64((10, 20, 30))},
+        }
+    )
+    monkeypatch.setattr(
+        "loop.observe_signal.aiohttp.ClientSession", lambda **kw: fake_session
+    )
+    vision_body = json.dumps({"title": "t", "description": "d", "content": ""})
+    completions = _FakeVisionCompletions(vision_body)
+    vision_client = _FakeVisionClient(completions=completions)
+
+    config = _config()
+    store = RecordingStore()
+    sink = _sink(tmp_path)
+    observer = SignalObserver(
+        config, store, sink, media_root=tmp_path / "media", vision_client=vision_client
+    )
+
+    await observer.handle_event(_image_event("first", att_id="att-1"))
+    await observer.handle_event(_image_event("second", att_id="att-2"))
+
+    assert len(completions.calls) == 2  # each image comprehended once
+    shas = {m["media_sha256"] for m in store.inserted_messages}
+    assert len(shas) == 2  # two distinct sha256, no collision
+
+
+class _RaisingMediaStore:
+    """Fakes `loop.media_store.store` raising — e.g. a full disk or a
+    read-only ./state — to prove `_capture_image` degrades rather than
+    losing the message (the review's blocker)."""
+
+    def store(self, *args, **kwargs):
+        raise OSError("No space left on device")
+
+
+async def test_media_store_raising_falls_back_to_bare_placeholder(tmp_path, monkeypatch) -> None:
+    fake_session = _FakeAttachmentSession({"result": _PNG_BASE64})
+    monkeypatch.setattr(
+        "loop.observe_signal.aiohttp.ClientSession", lambda **kw: fake_session
+    )
+    monkeypatch.setattr(
+        "loop.observe_signal.media_store.store",
+        _RaisingMediaStore().store,
+    )
+
+    config = _config()
+    store = RecordingStore()
+    sink = _sink(tmp_path)
+    observer = SignalObserver(config, store, sink, media_root=tmp_path / "media")
+
+    await observer.handle_event(_image_event("hi"))
+
+    msg = store.inserted_messages[0]
+    assert msg["media_sha256"] is None
+    assert msg["body"] == "hi [image]"
+
+
+async def test_vision_client_raising_falls_back_gracefully(tmp_path, monkeypatch) -> None:
+    """Belt and braces: even though vision.comprehend() now fails closed
+    internally, _capture_image's own try/except must also survive a
+    raising vision client (defense in depth, not redundancy)."""
+    fake_session = _FakeAttachmentSession({"result": _PNG_BASE64})
+    monkeypatch.setattr(
+        "loop.observe_signal.aiohttp.ClientSession", lambda **kw: fake_session
+    )
+
+    class _RaisingCompletions:
+        async def create(self, **kwargs):
+            raise RuntimeError("simulated vision outage")
+
+    class _RaisingChat:
+        completions = _RaisingCompletions()
+
+    class _RaisingVisionClient:
+        chat = _RaisingChat()
+
+    config = _config()
+    store = RecordingStore()
+    sink = _sink(tmp_path)
+    observer = SignalObserver(
+        config, store, sink, media_root=tmp_path / "media",
+        vision_client=_RaisingVisionClient(),
+    )
+
+    await observer.handle_event(_image_event("hi"))
+
+    # The image itself still lands (custody succeeded); only comprehension
+    # failed, and it failed silently rather than costing the message.
+    msg = store.inserted_messages[0]
+    assert msg["media_sha256"] is not None
+    assert "[image " in msg["body"]
+
+
+async def test_oversized_attachment_is_refused_before_fetching(tmp_path, monkeypatch) -> None:
+    """`image.size` over the cap must skip the fetch entirely — no
+    getAttachment call, no bytes in memory."""
+    calls = []
+
+    class _CountingSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return None
+
+        def post(self, *a, **kw):
+            calls.append(1)
+            return self
+
+    monkeypatch.setattr(
+        "loop.observe_signal.aiohttp.ClientSession", lambda **kw: _CountingSession()
+    )
+
+    config = _config()
+    store = RecordingStore()
+    sink = _sink(tmp_path)
+    observer = SignalObserver(config, store, sink, media_root=tmp_path / "media")
+
+    oversized = 9 * 1024 * 1024  # over the 8 MiB cap
+    await observer.handle_event(_image_event("hi", size=oversized))
+
+    assert calls == []  # never even tried to fetch
+    msg = store.inserted_messages[0]
+    assert msg["media_sha256"] is None
+    assert msg["body"] == "hi [image]"

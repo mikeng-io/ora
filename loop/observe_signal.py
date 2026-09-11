@@ -41,12 +41,20 @@ import aiohttp
 from loop import media_store, vision
 from loop.config import Config
 from loop.logging import LogSink
+from loop.media_store import MEDIA_SHORTID_LEN
 from loop.people import PeopleDirectory
 from loop.store import Store
 
 log = logging.getLogger("ora.signal.listener")
 
 _IMAGE_TYPES_ALLOWED_PREFIX = "image/"
+
+# 8 MiB — Nora's own measured ceiling for still images ([media] vision_max_bytes
+# in config.example.toml, "chosen for images"; her video path needs a wider one
+# because clips are routinely larger, but Ora has no video path). Checked
+# against the platform's CLAIMED size before fetching, and against the real
+# byte count after — a platform can misreport or omit `size`.
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 class SignalListener:
@@ -294,39 +302,58 @@ class SignalObserver:
         self._vision_client = vision_client
         self._media_root = media_root
 
-    async def _capture_image(self, image: AttachmentRef) -> str | None:
+    async def _capture_image(self, image: AttachmentRef, conversation_id: str) -> str | None:
         """Fetch, store, and (best-effort) comprehend one image. Returns the
         sha256 on success or `None` on any failure — a media failure must
-        never cost the message (R-5's discipline, kept)."""
-        data = await fetch_attachment(self._config.env.signal_base_url, image.platform_id)
-        if data is None:
+        never cost the message (R-5's discipline). The whole body is one
+        try/except: `fetch_attachment` was already fail-closed on its own,
+        but `media_store.store` can raise (ENOSPC, a read-only ./state),
+        `vision.comprehend` can raise anything but a timeout (a real
+        `AsyncOpenAI` client raises `APIConnectionError`/`RateLimitError`/
+        `APIStatusError`, and an empty `choices` list raises `IndexError`),
+        and both store calls can raise — none of those may propagate into
+        `handle_event` and cost the row (caught in review, Opus)."""
+        if image.size is not None and image.size > MAX_IMAGE_BYTES:
+            log.warning("image attachment too large (%s bytes), refusing", image.size)
             return None
-        stored = media_store.store(data, media_type=image.media_type, root=self._media_root)
-        existing = await self._store.fetchrow(
-            "SELECT comprehended FROM media_objects WHERE sha256 = $1", stored.sha256
-        )
-        if existing is None:
-            await self._store.execute(
-                """INSERT INTO media_objects (sha256, media_type, size, path, created_at)
-                   VALUES ($1,$2,$3,$4,$5)
-                   ON CONFLICT (sha256) DO NOTHING""",
-                stored.sha256, image.media_type, stored.size, stored.path, datetime.now(UTC),
+        try:
+            data = await fetch_attachment(self._config.env.signal_base_url, image.platform_id)
+            if data is None:
+                return None
+            if len(data) > MAX_IMAGE_BYTES:
+                log.warning("fetched image exceeds the size cap (%s bytes), refusing", len(data))
+                return None
+            stored = media_store.store(data, media_type=image.media_type, root=self._media_root)
+            existing = await self._store.fetchrow(
+                "SELECT comprehended FROM media_objects WHERE sha256 = $1", stored.sha256
             )
-        already_comprehended = bool(existing and existing["comprehended"])
-        if not already_comprehended and self._vision_client is not None:
-            result = await vision.comprehend(
-                self._vision_client, data=data, media_type=image.media_type, store=self._store,
-            )
-            if result.ok:
+            if existing is None:
                 await self._store.execute(
-                    """UPDATE media_objects
-                       SET title = $1, description = $2, content = $3,
-                           comprehended = TRUE, describe_model = $4
-                       WHERE sha256 = $5""",
-                    result.title, result.description, result.content,
-                    vision.VISION_MODEL, stored.sha256,
+                    """INSERT INTO media_objects (sha256, media_type, size, path, created_at)
+                       VALUES ($1,$2,$3,$4,$5)
+                       ON CONFLICT (sha256) DO NOTHING""",
+                    stored.sha256, image.media_type, stored.size, stored.path,
+                    datetime.now(UTC),
                 )
-        return stored.sha256
+            already_comprehended = bool(existing and existing["comprehended"])
+            if not already_comprehended and self._vision_client is not None:
+                result = await vision.comprehend(
+                    self._vision_client, data=data, media_type=image.media_type,
+                    store=self._store, platform="signal", conversation_id=conversation_id,
+                )
+                if result.ok:
+                    await self._store.execute(
+                        """UPDATE media_objects
+                           SET title = $1, description = $2, content = $3,
+                               comprehended = TRUE, describe_model = $4, describe_call_id = $5
+                           WHERE sha256 = $6""",
+                        result.title, result.description, result.content,
+                        vision.VISION_MODEL, result.call_id, stored.sha256,
+                    )
+            return stored.sha256
+        except Exception:  # noqa: BLE001 — a media failure must never cost the message
+            log.exception("image capture failed; falling back to a bare placeholder")
+            return None
 
     async def handle_event(self, event: dict) -> None:
         parsed = parse_event(event, own_account=self._config.env.signal_account)
@@ -347,8 +374,10 @@ class SignalObserver:
         media_sha256: str | None = None
         body = parsed.body
         if parsed.image is not None:
-            media_sha256 = await self._capture_image(parsed.image)
-            placeholder = f"[image {media_sha256[:6]}]" if media_sha256 else "[image]"
+            media_sha256 = await self._capture_image(parsed.image, parsed.conversation_id)
+            placeholder = (
+                f"[image {media_sha256[:MEDIA_SHORTID_LEN]}]" if media_sha256 else "[image]"
+            )
             body = f"{body} {placeholder}".strip() if body else placeholder
 
         await self._store.execute(

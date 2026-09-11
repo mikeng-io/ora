@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS media_objects (
   content TEXT,
   comprehended BOOLEAN NOT NULL DEFAULT FALSE,
   describe_model TEXT,
+  describe_call_id BIGINT,           -- the model_calls row behind the comprehension (ORA-17)
   created_at TIMESTAMPTZ NOT NULL
 );
 

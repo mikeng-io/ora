@@ -16,6 +16,12 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
+# The placeholder's id length (`[image abc123]`) — shared so a caller writing
+# the placeholder (observe_signal.py) and a caller joining media into it at
+# render time (render.py) can never drift apart on how many hex chars a
+# shortid is.
+MEDIA_SHORTID_LEN = 6
+
 _EXT_BY_MEDIA_TYPE = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
