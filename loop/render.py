@@ -62,6 +62,32 @@ class TranscriptRow:
     is_ora: bool = False
 
 
+def render_media_marker(shortid: str, title: str, description: str) -> str:
+    """`[image abc123: <title> — <description>]`, or the bare `[image
+    abc123]` when nothing has been comprehended yet — an index entry
+    claims nothing about the bytes (design/19-media-comprehension.md §2's
+    rule, kept). Never the FULL `content` field (transcripts render
+    title+description only, the same budget argument as Nora's own
+    `comprehension_render_chars`; `content` is for a fetch tool, not
+    every turn's transcript)."""
+    parts = " — ".join(p for p in (title, description) if p)
+    return f"[image {shortid}: {parts}]" if parts else f"[image {shortid}]"
+
+
+def join_media_into_body(body: str, shortid: str, title: str, description: str) -> str:
+    """The render-time join design/19 §3 diagrams: `transcript render: join
+    media_objects -> [image a3f2c1: <title> - <description>]`. Observe
+    writes the BARE placeholder into `messages.body` (the durable record,
+    A9); this replaces it with the comprehended join for one render call,
+    without mutating the stored row. A placeholder that is not found —
+    never written, or a shortid mismatch — leaves `body` untouched rather
+    than silently duplicating a marker."""
+    bare = f"[image {shortid}]"
+    if bare not in body:
+        return body
+    return body.replace(bare, render_media_marker(shortid, title, description))
+
+
 @dataclass(frozen=True)
 class NoteEntry:
     id: str

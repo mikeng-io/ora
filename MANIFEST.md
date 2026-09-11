@@ -64,3 +64,12 @@ decides is built on the day (event-day, source `—`).
 | `docs/video-storyboard.md` | prefab | new (design/05 §3) | — | mike | 2026-09-12 |
 | `docs/social-post.md` | prefab | new | — | mike | 2026-09-12 |
 | `docker-compose.yml` | prefab | `nora/docker-compose.yml` (signal-cli, whatsapp-bridge stanzas, volumes stripped to Ora's own state dirs); postgres + honcho new — honcho image/tag `unverified: no self-host stanza exists anywhere in Nora's tree to copy; confirm against Honcho's own docs at 10:00` | — | mike | 2026-09-12 |
+| `design/06-decisions.md` ORA-18 | prefab | new — media returns (images only), scope decision | — | mike | 2026-09-12 |
+| `schema.sql` (media_objects, messages.media_sha256) | prefab | new (design/19-media-comprehension.md shape, trimmed — no provenance JSON, no video-chunk fields) | — | mike | 2026-09-12 |
+| `loop/media_store.py` | prefab | new (plain sha256-keyed storage — not Nora's rustfs custody) | — | mike | 2026-09-12 |
+| `tests/test_media_store.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/vision.py` | prefab | new (design/19-media-comprehension.md §2's three-field shape; model chosen after live-testing kimi-k3 vs glm-5.3-flash — see ORA-18) | — | mike | 2026-09-12 |
+| `tests/test_vision.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/observe_signal.py` (image capture) | prefab | `nora/platform/signal/media.py` shape (`getAttachment`) — `unverified: no real attachment has ever arrived on Nora's own deployment either; this is Nora's own measured-not-proven claim, not a stronger one` | — | mike | 2026-09-12 |
+| `tests/test_observe_signal_media.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/render.py` (render_media_marker, join_media_into_body) | prefab | new (design/19-media-comprehension.md §3's render-time join, adapted) | — | mike | 2026-09-12 |

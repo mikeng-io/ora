@@ -5,7 +5,9 @@ from loop.render import (
     NoteEntry,
     StandingEntry,
     TranscriptRow,
+    join_media_into_body,
     render_loop_decisions,
+    render_media_marker,
     render_notes,
     render_peer_card,
     render_self_card,
@@ -179,3 +181,56 @@ def test_untrusted_text_is_escaped_everywhere_group_authored_text_lands() -> Non
     )
     assert "&lt;script&gt;" in render_self_card([payload])
     assert "&lt;script&gt;" in render_peer_card("Mike", [payload])
+
+
+# --- media transcript injection (ORA-18) ------------------------------------
+
+
+def test_render_media_marker_with_both_fields() -> None:
+    marker = render_media_marker("abc123", "a cat", "an orange cat on a sofa")
+    assert marker == "[image abc123: a cat — an orange cat on a sofa]"
+
+
+def test_render_media_marker_bare_when_uncomprehended() -> None:
+    """All three fields empty is an index entry, not a claim of nothing
+    (design/19 §2, kept) — the bare placeholder, no dash, no join."""
+    marker = render_media_marker("abc123", "", "")
+    assert marker == "[image abc123]"
+
+
+def test_render_media_marker_with_only_title() -> None:
+    marker = render_media_marker("abc123", "a cat", "")
+    assert marker == "[image abc123: a cat]"
+
+
+def test_join_media_into_body_replaces_the_bare_placeholder() -> None:
+    body = "check this out [image abc123]"
+    joined = join_media_into_body(body, "abc123", "a cat", "an orange cat")
+    assert joined == "check this out [image abc123: a cat — an orange cat]"
+
+
+def test_join_media_into_body_leaves_untouched_when_placeholder_absent() -> None:
+    body = "no image here at all"
+    joined = join_media_into_body(body, "abc123", "a cat", "an orange cat")
+    assert joined == body
+
+
+def test_join_media_into_body_stays_bare_when_uncomprehended() -> None:
+    body = "[image abc123]"
+    joined = join_media_into_body(body, "abc123", "", "")
+    assert joined == "[image abc123]"
+
+
+def test_render_transcript_renders_the_joined_body_and_escapes_it() -> None:
+    """render_transcript itself stays a pure renderer over `body` — the
+    join happens before construction (this is what a future orient.py
+    does), and the result still goes through the same escaping every
+    other transcript row gets."""
+    body = join_media_into_body(
+        "look <b>at</b> this [image abc123]", "abc123", "a sign", "a <road> sign"
+    )
+    rows = [TranscriptRow(sender_label="Mike", body=body, ts=NOW)]
+    block = render_transcript(rows, now=NOW)
+    assert "[image abc123: a sign — a &lt;road&gt; sign]" in block
+    assert "&lt;b&gt;at&lt;/b&gt;" in block
+    assert "<road>" not in block
