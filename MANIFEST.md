@@ -50,3 +50,7 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_decisions.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/memory.py` | prefab | `nora/infra/honcho/client.py` shape (feed/peer_card/representation; stamp-stripping kept verbatim), trimmed to one workspace — no `WorkspaceRouter` | — | mike | 2026-09-12 |
 | `tests/test_memory.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/search.py` | prefab | `nora/infra/search/exa.py`, `nora/infra/search/_shared.py` shape (three-state contract, untrusted wrap kept) | — | mike | 2026-09-12 |
+| `tests/test_search.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/route.py` | prefab | `nora/infra/routes/{client,directions,http}.py` shape (Routes API v2, trimmed — address waypoints directly, no separate Places resolution) | — | mike | 2026-09-12 |
+| `tests/test_route.py` | prefab | new | — | mike | 2026-09-12 |
