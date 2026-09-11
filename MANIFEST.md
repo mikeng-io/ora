@@ -45,3 +45,6 @@ decides is built on the day (event-day, source `—`).
 | live: norty's signal-cli/whatsapp-bridge over Tailscale | prefab | `unverified: ports 18080/18081 bind to 127.0.0.1 on norty (docs/runbook.md); not reachable at norty's Tailscale ip 100.117.189.77; no tunnel attempted per "never touch norty"` | — | mike | 2026-09-12 |
 | `loop/act.py` | prefab | `nora/platform/signal/send.py`, `nora/platform/whatsapp/send.py` (request shape), `nora/agent/outbound.py::OutboundComposer._scan` (mention scan, simplified: no roster confirmation) — WhatsApp outbound mentions are Ora's own addition, undocumented on the bridge, unverified until a real send | — | mike | 2026-09-12 |
 | `tests/test_act.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/decisions.py` | prefab | schema-side only (insert/select); shape from `nora/domain/decision_log.py`'s `recent_for` filter-before-bound discipline — the log's LOGIC (who writes) is event-day | — | mike | 2026-09-12 |
+| `loop/gate_log.py` | prefab | new | — | mike | 2026-09-12 |
+| `tests/test_decisions.py` | prefab | new | — | mike | 2026-09-12 |
