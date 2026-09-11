@@ -56,3 +56,5 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_route.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/calendar.py` | prefab | new (stub — request body a documented TODO) | — | mike | 2026-09-12 |
 | `tests/test_calendar_stub.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
+| `tests/test_loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
