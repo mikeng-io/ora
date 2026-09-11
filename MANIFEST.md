@@ -59,3 +59,7 @@ decides is built on the day (event-day, source `—`).
 | `loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_journey.py` | prefab | new (shape from `nora/tests/integration/test_ambient_loop_positive_control.py`'s fixture, no sha) | — | mike | 2026-09-12 |
+| `RUNBOOK.md` | prefab | new (design/04 §1-2, §4) | — | mike | 2026-09-12 |
+| `README.md` | prefab | new (design/00, 01) | — | mike | 2026-09-12 |
+| `docs/video-storyboard.md` | prefab | new (design/05 §3) | — | mike | 2026-09-12 |
+| `docs/social-post.md` | prefab | new | — | mike | 2026-09-12 |
