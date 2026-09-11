@@ -1,0 +1,91 @@
+# The six-step demo journey (design/04 §2), with a clock. Frozen tonight as
+# DATA for tests/test_journey.py's six xfail(strict=True) placeholders
+# (design/07 item 16) — event-day fills the six bodies against this fixture,
+# it does not rewrite the script.
+# source (shape only, no sha): nora's
+# tests/integration/test_ambient_loop_positive_control.py fixture.
+
+workspace: demo
+rooms:
+  signal: {label: Signal, home_room: true}
+  whatsapp: {label: WhatsApp, home_room: false}
+
+# Seeded before the run, disclosed on stage (design/04 §1, 06 "what would
+# show this bundle was wrong"). Both created_at visibly before t0.
+seed:
+  notes:
+    - id: N1
+      title: "Cyberport tomorrow — meeting time not fixed"
+      closing_condition: "a time is agreed"
+      anchor_at: "2026-09-13T10:00:00+08:00"
+      anchor_place: "Cyberport"
+      room_label: Signal
+    - id: N2
+      title: "Dinner after Cyberport — where?"
+      closing_condition: "a place is agreed"
+      anchor_at: "2026-09-13T19:00:00+08:00"
+      room_label: Signal
+
+steps:
+  - n: 1
+    t: "0:00"
+    who: A
+    platform: whatsapp
+    message: "聽日幾點去 Cyberport？"
+    stage: "ambient: gate -> turn"
+    pass:
+      - "gate_log row verdict='go' for the whatsapp window, ts > t0"
+      - "Ora answers on whatsapp"
+      - "decisions row writer='participation' verdict='spoke' grounded_on='note:N1'"
+
+  - n: 2
+    t: "0:40"
+    who: mike
+    platform: signal
+    message: "@ora 咁聽日 10 點集合，點去？"
+    stage: "tag path"
+    pass:
+      - "Ora answers with a route (Directions) + one Exa result"
+      - "standing.body for signal rewritten, updated_at > t0"
+      - "decisions row writer='tag' verdict='replied'"
+
+  - n: 3
+    t: "1:00"
+    who: null  # Mike's tag at step 2 fixed the time
+    stage: "orient: curation"
+    pass:
+      - "note N1 retired_reason='closed'"
+      - "note N1 cited_row_id is a human row (Mike's step-2 message), never is_ora"
+      - "note N2 still open"
+
+  - n: 4
+    t: "1:00-2:30"
+    who: null  # silence
+    stage: "ambient: proactive"
+    pass:
+      - "reminders row R1 pending for N2, then fires: Ora speaks in signal (home room), 「晚飯食邊度？」"
+      - "decisions row writer='proactive_act' verdict='spoke'"
+      - "unanswered: note N2 strikes=1; reminders row R2 (revisit, +90s) pending"
+
+  - n: 5
+    t: "2:40"
+    who: A
+    platform: whatsapp
+    message: "唔使諗啦，聽日唔食飯，改咗下星期"
+    stage: "decide <-> decide"
+    pass:
+      - "the whatsapp participation turn sees R2 (a signal row) in loop_decisions and cancels it"
+      - "reminders row R2 state='cancelled'"
+      - "decisions row writer='participation' verdict='cancelled' reminder_id='R2'"
+      - "curation marks N2 retired_reason='moot'"
+      - "no second raise: zero is_ora rows in signal after t_step5"
+
+  - n: 6
+    t: "3:30"
+    who: A
+    platform: both
+    message: "banter, a gif link, 'lol' x3 (after cooldown_seconds has expired)"
+    stage: "silence"
+    pass:
+      - "gate_log rows verdict='no_go' for each window, finish_reason='stop' (not an error)"
+      - "zero is_ora rows after t_step6"

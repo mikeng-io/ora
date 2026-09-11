@@ -1,0 +1,85 @@
+# The 3 twin pairs (design/07 item 8), from Nora's participation suite.
+# source: nora/evals/cases/participation/participation.yaml @ 434282db, case
+# bodies copied unedited (transcript, input, seed). The verdict MUST flip to
+# silence when the grounding (a note or standing) is cut — a model that
+# answers a twin from parametric memory has failed, however correct the
+# answer is in the world. Run at reasoning `low`, n=5 (design/04 §3):
+# every -unknown twin <= 1/5 speaks; every -known twin >= 3/5.
+
+# --- the stalled question -----------------------------------------------
+
+- name: stalled-question-known
+  input: "when is the next Raft update?"
+  expect: speak
+  sample: 5
+  seed:
+    transcript:
+      - "when is the next Raft update?"
+      - "anyway 聽日 lunch 食咩"
+      - "我唔care 你哋揀啦"
+    notes:
+      - title: "Raft roadmap"
+        closing_condition: "Raft announces a date"
+        body: "Raft's maintainer said the next update targets the week of October 19; no firm date announced."
+
+- name: stalled-question-unknown
+  input: "when is the next Raft update?"
+  expect: silence
+  sample: 5
+  seed:
+    transcript:
+      - "when is the next Raft update?"
+      - "anyway 聽日 lunch 食咩"
+      - "我唔care 你哋揀啦"
+    # NO note — the knowledge cut.
+
+# --- the commitment follow-up --------------------------------------------
+
+- name: commitment-followup-known
+  input: "so did anyone book the restaurant for Saturday?"
+  expect: speak
+  sample: 5
+  seed:
+    transcript:
+      - "Saturday dinner 8pm 好唔好"
+      - "好呀 邊度食"
+      - {name: "Gabriel", body: "上次話咗要訂嗰間 tapas 啦"}
+    standing: "Ora committed to confirming the tapas venue for Saturday's dinner and has not reported back yet."
+
+- name: commitment-followup-unknown
+  input: "so did anyone book the restaurant for Saturday?"
+  expect: silence
+  sample: 5
+  seed:
+    transcript:
+      - "Saturday dinner 8pm 好唔好"
+      - "好呀 邊度食"
+      - {name: "Gabriel", body: "上次話咗要訂嗰間 tapas 啦"}
+    # NO standing — the knowledge cut.
+
+# --- the planning-context question ---------------------------------------
+
+- name: planning-context-known
+  input: "weekday or weekend then?"
+  expect: speak
+  sample: 5
+  seed:
+    transcript:
+      - "Tai O 一日遊幾時去好"
+      - {name: "Gabriel", body: "我星期六要返工"}
+      - "咁即係得星期日或者平日"
+    notes:
+      - title: "Tai O trip timing"
+        closing_condition: "the group picks a day"
+        body: "Gabriel works Saturdays, so the earlier discussion narrowed it to Sunday or a weekday; nobody has picked."
+
+- name: planning-context-unknown
+  input: "weekday or weekend then?"
+  expect: silence
+  sample: 5
+  seed:
+    transcript:
+      - "Tai O 一日遊幾時去好"
+      - {name: "Gabriel", body: "我星期六要返工"}
+      - "咁即係得星期日或者平日"
+    # NO note — the knowledge cut.

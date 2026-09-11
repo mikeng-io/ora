@@ -32,3 +32,8 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_prompts.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/render.py` | prefab | `nora/agent/prefill.py`, `nora/domain/decision_log.py`, `nora/language/{note_render,standing_render}.py` shapes; self_card/peer_card hedges verbatim | — | mike | 2026-09-12 |
 | `tests/test_render.py` | prefab | new | — | mike | 2026-09-12 |
+| `cases/gate/gate.yaml` | prefab | `nora/evals/cases/relevance_gate/gate.yaml` (12 of 40 cases, unedited) | — | mike | 2026-09-12 |
+| `cases/participation/participation.yaml` | prefab | `nora/evals/cases/participation/participation.yaml` (3 twin pairs, unedited) | — | mike | 2026-09-12 |
+| `cases/journey.yaml` | prefab | new (design/04 §2 shape) | — | mike | 2026-09-12 |
+| `cases/run_gate.py` | prefab | new | — | mike | 2026-09-12 |
+| `cases/__init__.py` | prefab | new | — | mike | 2026-09-12 |
