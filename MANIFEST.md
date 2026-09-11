@@ -48,3 +48,5 @@ decides is built on the day (event-day, source `—`).
 | `loop/decisions.py` | prefab | schema-side only (insert/select); shape from `nora/domain/decision_log.py`'s `recent_for` filter-before-bound discipline — the log's LOGIC (who writes) is event-day | — | mike | 2026-09-12 |
 | `loop/gate_log.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_decisions.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/memory.py` | prefab | `nora/infra/honcho/client.py` shape (feed/peer_card/representation; stamp-stripping kept verbatim), trimmed to one workspace — no `WorkspaceRouter` | — | mike | 2026-09-12 |
+| `tests/test_memory.py` | prefab | new | — | mike | 2026-09-12 |
