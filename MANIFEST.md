@@ -37,3 +37,9 @@ decides is built on the day (event-day, source `—`).
 | `cases/journey.yaml` | prefab | new (design/04 §2 shape) | — | mike | 2026-09-12 |
 | `cases/run_gate.py` | prefab | new | — | mike | 2026-09-12 |
 | `cases/__init__.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/config.py` (workspace property) | prefab | new | — | mike | 2026-09-12 |
+| `loop/people.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/observe_signal.py` | prefab | `nora/platform/signal/{listener,parser}.py` (listener near-verbatim; parser trimmed — no media/reactions/stickers/mentions/quotes; own-send + syncMessage drop kept) | — | mike | 2026-09-12 |
+| `loop/observe_whatsapp.py` | prefab | `nora/platform/whatsapp/{listener,parser}.py` (listener near-verbatim; parser trimmed; from_me drop kept) | — | mike | 2026-09-12 |
+| `tests/test_allowlist.py` | prefab | new | — | mike | 2026-09-12 |
+| live: norty's signal-cli/whatsapp-bridge over Tailscale | prefab | `unverified: ports 18080/18081 bind to 127.0.0.1 on norty (docs/runbook.md); not reachable at norty's Tailscale ip 100.117.189.77; no tunnel attempted per "never touch norty"` | — | mike | 2026-09-12 |

@@ -128,6 +128,15 @@ class Config:
         """Deny-by-default: `None` for anything not in rooms.toml (design/02 §3)."""
         return self.rooms.get((platform, conversation_id))
 
+    @property
+    def workspace(self) -> str:
+        """Ora is one workspace of two rooms and one loop (design/00 §4) —
+        `rooms.toml` names exactly one `[workspace.*]` table in v1, and every
+        row belongs to it."""
+        if not self.workspaces:
+            return "demo"
+        return next(iter(self.workspaces))
+
 
 def load_rooms_toml(
     path: str | Path = "rooms.toml",
