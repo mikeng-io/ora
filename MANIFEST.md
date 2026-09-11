@@ -58,3 +58,4 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_calendar_stub.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
+| `tests/test_journey.py` | prefab | new (shape from `nora/tests/integration/test_ambient_loop_positive_control.py`'s fixture, no sha) | — | mike | 2026-09-12 |
