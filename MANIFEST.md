@@ -13,3 +13,5 @@ decides is built on the day (event-day, source `—`).
 | `.env.example` | prefab | new | — | mike | 2026-09-12 |
 | `rooms.toml` | prefab | new | — | mike | 2026-09-12 |
 | `people.toml` | prefab | new | — | mike | 2026-09-12 |
+| `loop/config.py` | prefab | new | — | mike | 2026-09-12 |
+| `tests/test_config.py` | prefab | new | — | mike | 2026-09-12 |
