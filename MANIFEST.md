@@ -18,3 +18,5 @@ decides is built on the day (event-day, source `—`).
 | `schema.sql` | prefab | new (design/01 §3 DDL) | — | mike | 2026-09-12 |
 | `loop/store.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_store.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/logging.py` | prefab | new (grammar per design/01 §7) | — | mike | 2026-09-12 |
+| `tests/test_log_grammar.py` | prefab | new | — | mike | 2026-09-12 |
