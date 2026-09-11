@@ -43,3 +43,5 @@ decides is built on the day (event-day, source `—`).
 | `loop/observe_whatsapp.py` | prefab | `nora/platform/whatsapp/{listener,parser}.py` (listener near-verbatim; parser trimmed; from_me drop kept) | — | mike | 2026-09-12 |
 | `tests/test_allowlist.py` | prefab | new | — | mike | 2026-09-12 |
 | live: norty's signal-cli/whatsapp-bridge over Tailscale | prefab | `unverified: ports 18080/18081 bind to 127.0.0.1 on norty (docs/runbook.md); not reachable at norty's Tailscale ip 100.117.189.77; no tunnel attempted per "never touch norty"` | — | mike | 2026-09-12 |
+| `loop/act.py` | prefab | `nora/platform/signal/send.py`, `nora/platform/whatsapp/send.py` (request shape), `nora/agent/outbound.py::OutboundComposer._scan` (mention scan, simplified: no roster confirmation) — WhatsApp outbound mentions are Ora's own addition, undocumented on the bridge, unverified until a real send | — | mike | 2026-09-12 |
+| `tests/test_act.py` | prefab | new | — | mike | 2026-09-12 |

@@ -61,3 +61,9 @@ class PeopleDirectory:
             return None
         platform_id = person.signal if platform == "signal" else person.whatsapp
         return platform_id or None
+
+    def names_longest_first(self) -> list[str]:
+        """Every known name, longest first — `act.py`'s `@handle` scan needs
+        longest-match so a shorter name that prefixes a longer one never
+        steals the match (Nora `outbound._handle_index`'s rule)."""
+        return sorted(self._by_name, key=len, reverse=True)
