@@ -111,7 +111,7 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_sha256 TEXT REFERENCES media
 
 CREATE TABLE IF NOT EXISTS model_calls (  -- one row per model call, every stage; the trace, in a table
   id BIGSERIAL PRIMARY KEY,
-  stage TEXT NOT NULL,               -- 'gate' | 'turn' | 'tag' | 'fold' | 'notes' | 'curation' | 'proactive_decide' | 'proactive_act'
+  stage TEXT NOT NULL,               -- 'gate' | 'turn' | 'tag' | 'fold' | 'notes' | 'curation' | 'proactive_decide' | 'proactive_act' | 'vision' (ORA-18)
   platform TEXT, conversation_id TEXT,
   model TEXT NOT NULL,               -- deepseek-v4-flash
   reasoning TEXT NOT NULL,           -- 'none' | 'low'

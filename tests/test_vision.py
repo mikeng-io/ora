@@ -88,3 +88,36 @@ async def test_comprehend_is_not_ok_on_unparseable_json() -> None:
     result = await comprehend(client, data=b"x", media_type="image/jpeg")
 
     assert not result.ok
+
+
+class _RecordingStore:
+    def __init__(self) -> None:
+        self.inserted: list[tuple] = []
+
+    async def fetchval(self, _query: str, *args: object) -> int:
+        self.inserted.append(args)
+        return len(self.inserted)
+
+
+async def test_comprehend_writes_a_model_calls_row_when_a_store_is_given() -> None:
+    body = '{"title":"x","description":"y","content":""}'
+    fake = _FakeCompletions(_Response(choices=[_Choice(_Message(body), "stop")]))
+    client = _FakeClient(completions=fake)
+    store = _RecordingStore()
+
+    result = await comprehend(client, data=b"x", media_type="image/png", store=store)
+
+    assert result.call_id == 1
+    assert len(store.inserted) == 1
+
+
+async def test_comprehend_writes_a_model_calls_row_even_when_not_ok() -> None:
+    fake = _FakeCompletions(_Response(choices=[_Choice(_Message(""), "length")]))
+    client = _FakeClient(completions=fake)
+    store = _RecordingStore()
+
+    result = await comprehend(client, data=b"x", media_type="image/png", store=store)
+
+    assert not result.ok
+    assert result.call_id == 1
+    assert len(store.inserted) == 1
