@@ -1,0 +1,10 @@
+# people.toml — the cross-platform glue; the only place a human's two ids
+# meet (design/02 §4). Observe resolves sender_id -> person_id; render.py
+# prints the name; act.py resolves @Name back to a platform id for a real
+# mention. An unresolvable name goes out as plain text, never a guess.
+
+[[person]]
+id = "mike"
+name = "Mike"
+signal = "<aci or number>"
+whatsapp = "<jid>"

@@ -1,0 +1,20 @@
+# rooms.toml — the ONLY rooms Ora may hear or speak in (design/02 §3).
+# Deny-by-default: a row from any room not listed here is dropped at
+# Observe, before any store write; a send to any room not listed here is
+# refused at Act. Fill in the real ids at 10:00-10:30 on the day.
+
+[workspace.demo]
+home_room = "signal:<group id>"          # proactive rows fire here
+description = "the hackathon circle: Mike and the team, one Saturday"
+
+[[room]]
+platform = "signal"
+conversation_id = "<group id>"
+label = "Signal"
+description = "the main room; plans get made here"
+
+[[room]]
+platform = "whatsapp"
+conversation_id = "<jid>@g.us"
+label = "WhatsApp"
+description = "the same people; quicker, more forwards"
