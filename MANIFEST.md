@@ -54,3 +54,5 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_search.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/route.py` | prefab | `nora/infra/routes/{client,directions,http}.py` shape (Routes API v2, trimmed — address waypoints directly, no separate Places resolution) | — | mike | 2026-09-12 |
 | `tests/test_route.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/calendar.py` | prefab | new (stub — request body a documented TODO) | — | mike | 2026-09-12 |
+| `tests/test_calendar_stub.py` | prefab | new | — | mike | 2026-09-12 |
