@@ -22,3 +22,11 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_log_grammar.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/model.py` | prefab | `nora/app/composition.py::_RelevanceGateModelClient` shape | — | mike | 2026-09-12 |
 | `tests/test_model.py` | prefab | new | — | mike | 2026-09-12 |
+| `prompts/gate.md` | prefab | `nora/doctrine/participation.md` (v5) | `2d3012ecbdaa` | mike | 2026-09-12 |
+| `prompts/fold.md` | prefab | `nora/dreamer/objectives/standing-debrief.md` (v5) | `e6539a3abeb0` | mike | 2026-09-12 |
+| `prompts/verdict.md` | prefab | `nora/dreamer/objectives/standing-verdict.md` (v1) | `1d96241861cb` | mike | 2026-09-12 |
+| `prompts/notes.md` | prefab | `nora/dreamer/objectives/note-candidates.md` (v5) | `5de105577f58` | mike | 2026-09-12 |
+| `prompts/curation.md` | prefab | `nora/dreamer/objectives/note-curation.md` (v5) | `39e362cd5799` | mike | 2026-09-12 |
+| `prompts/proactive.md` | prefab | `nora/dreamer/objectives/proactive.md` (v4) | `8cfc424dbc58` | mike | 2026-09-12 |
+| `prompts/turn.md` | prefab | assembled (design/07 item 6) — Opus-reviewed, 2 blockers + 4 should-fixes fixed | `67a4ab3ced51` | mike | 2026-09-12 |
+| `tests/test_prompts.py` | prefab | new | — | mike | 2026-09-12 |
