@@ -1,0 +1,19 @@
+# secrets and local state — never committed
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-journal
+state/
+data/
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# os / editors
+.DS_Store
+.idea/
+.vscode/
