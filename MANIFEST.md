@@ -15,3 +15,6 @@ decides is built on the day (event-day, source `—`).
 | `people.toml` | prefab | new | — | mike | 2026-09-12 |
 | `loop/config.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_config.py` | prefab | new | — | mike | 2026-09-12 |
+| `schema.sql` | prefab | new (design/01 §3 DDL) | — | mike | 2026-09-12 |
+| `loop/store.py` | prefab | new | — | mike | 2026-09-12 |
+| `tests/test_store.py` | prefab | new | — | mike | 2026-09-12 |
