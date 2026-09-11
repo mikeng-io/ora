@@ -87,6 +87,28 @@ CREATE TABLE IF NOT EXISTS gate_log (   -- observability ONLY: read by loop_tail
   ts TIMESTAMPTZ NOT NULL
 );
 
+-- ORA-18: images only, plain storage (no rustfs custody), one row per unique
+-- byte (sha256). `path` is a local file under ./state/media/, never a bind
+-- into signal-cli's own attachment store. `comprehended=false` is an index
+-- entry that says the bytes exist and claims nothing about them yet
+-- (design/19-media-comprehension.md §2's rule, kept).
+CREATE TABLE IF NOT EXISTS media_objects (
+  sha256 TEXT PRIMARY KEY,
+  media_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  title TEXT,
+  description TEXT,
+  content TEXT,
+  comprehended BOOLEAN NOT NULL DEFAULT FALSE,
+  describe_model TEXT,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+-- Added after messages already shipped (design/07 built text-only); a plain
+-- ALTER keeps schema.sql idempotent without a migration tool (ORA-16).
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_sha256 TEXT REFERENCES media_objects(sha256);
+
 CREATE TABLE IF NOT EXISTS model_calls (  -- one row per model call, every stage; the trace, in a table
   id BIGSERIAL PRIMARY KEY,
   stage TEXT NOT NULL,               -- 'gate' | 'turn' | 'tag' | 'fold' | 'notes' | 'curation' | 'proactive_decide' | 'proactive_act'

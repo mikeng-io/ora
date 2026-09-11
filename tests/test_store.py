@@ -35,7 +35,8 @@ async def store():
     await s.apply_schema()
     yield s
     await s.execute(
-        "TRUNCATE messages, standing, note, reminders, decisions, gate_log, model_calls"
+        "TRUNCATE messages, standing, note, reminders, decisions, gate_log, "
+        "model_calls, media_objects CASCADE"
     )
     await s.close()
 
@@ -115,3 +116,46 @@ async def test_insert_and_read_back_one_row_per_table(store: Store) -> None:
         now,
     )
     assert gate_id is not None
+
+
+async def test_media_objects_and_messages_join(store: Store) -> None:
+    """design/06 ORA-18: media_objects added after messages already shipped
+    — the ALTER TABLE must not have broken anything, and the join a render
+    step needs must actually work."""
+    now = datetime.now(UTC)
+
+    await store.execute(
+        """INSERT INTO media_objects
+           (sha256, media_type, size, path, title, description, created_at)
+           VALUES ('abc123', 'image/png', 100, '/tmp/x.png', 'a cat', 'an orange cat', $1)""",
+        now,
+    )
+    msg_id = await store.fetchval(
+        """INSERT INTO messages
+           (platform, conversation_id, workspace, sender_id, is_ora, ts, body,
+            body_len, media_sha256)
+           VALUES ('signal','g1','demo','+85212345678', FALSE, $1, '[image abc123]', 14, 'abc123')
+           RETURNING id""",
+        now,
+    )
+    row = await store.fetchrow(
+        """SELECT m.body, mo.title, mo.description FROM messages m
+           JOIN media_objects mo ON mo.sha256 = m.media_sha256
+           WHERE m.id = $1""",
+        msg_id,
+    )
+    assert row["title"] == "a cat"
+    assert row["description"] == "an orange cat"
+
+
+async def test_media_sha256_is_optional(store: Store) -> None:
+    now = datetime.now(UTC)
+    msg_id = await store.fetchval(
+        """INSERT INTO messages
+           (platform, conversation_id, workspace, sender_id, is_ora, ts, body, body_len)
+           VALUES ('signal','g1','demo','+85212345678', FALSE, $1, 'no image here', 13)
+           RETURNING id""",
+        now,
+    )
+    row = await store.fetchrow("SELECT media_sha256 FROM messages WHERE id = $1", msg_id)
+    assert row["media_sha256"] is None
