@@ -1,0 +1,135 @@
+# Mike's stack (design/01 §2, design/02 §1): signal-cli, whatsapp-bridge,
+# postgres:16, honcho. design/07 item 18: written only because no compose
+# file existed in this repo yet; the two bridge stanzas are copied from
+# ~/Workplace/nora/docker-compose.yml with Nora's volumes stripped to
+# Ora's own state directories — Ora links as a SEPARATE device (design/02
+# §2) and must never share norty's ./state/signal-cli or ./state/whatsapp.
+#
+# EVERY published port below is bound to 127.0.0.1 ONLY, deliberately.
+# signal-cli's JSON-RPC (send-as-Mike), whatsapp-bridge's send endpoint,
+# Postgres, and Honcho's API all carry no authentication of their own —
+# Nora's own compose keeps the equivalent two bridges on a private,
+# unpublished network for exactly this reason. Ora runs as a plain
+# process on the same host (design/02 §1), not inside this compose
+# project, so it needs *some* published port — but 0.0.0.0 would offer
+# every one of those unauthenticated APIs to the whole Tailscale/LAN
+# surface, which is a real hole a security review caught in this file.
+# `.env.example` already assumes localhost-only (`SIGNAL_BASE_URL=http://
+# localhost:18080`, etc.), so binding to loopback costs nothing Ora needs.
+#
+# `docker compose config` validates this file; it is NOT brought up
+# tonight (design/07 item 18's verify step) — the first real bring-up is
+# the 10:00-10:30 smoke (design/05 §1).
+
+services:
+  # signal-cli — copied from nora/docker-compose.yml, same image tag
+  # (design/02 §1: "same image as norty"). Ora's container starts with NO
+  # prior state: it is linked as a second device of the SAME account from
+  # the phone (design/02 §2), not registered fresh — `signal-cli link -n
+  # ora` (run once, interactively, via `docker compose run --rm signal-cli
+  # signal-cli link -n ora`) before this daemon command ever runs.
+  signal-cli:
+    image: signal-cli:0.14.7
+    container_name: ora-signal-cli
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18080:18080"
+    volumes:
+      # Ora's OWN identity/state — never norty's ./state/signal-cli. Losing
+      # this loses Ora's linked-device registration, not Nora's.
+      - ./state/signal-cli:/data/signal-cli
+    environment:
+      - XDG_DATA_HOME=/data
+    command:
+      [
+        "--account", "${SIGNAL_ACCOUNT}",
+        "daemon", "--http", "0.0.0.0:18080", "--receive-mode", "on-start",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS -m 5 -X POST http://127.0.0.1:18080/api/v1/rpc -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":\"hc\",\"method\":\"version\",\"params\":{}}' | grep -q '\"version\"' || exit 1",
+        ]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # whatsapp-bridge — copied from nora/docker-compose.yml, same image tag.
+  # FIRST RUN needs pairing (design/02 §2): a dedicated bot number, paired
+  # by CODE into that phone's WhatsApp — Linked Devices → Link with phone
+  # number:
+  #   docker compose run --rm whatsapp-bridge --pair --phone <digits>
+  # Then normal `docker compose up -d` boots with the saved session.
+  whatsapp-bridge:
+    image: whatsapp-bridge:0.1.0
+    container_name: ora-whatsapp-bridge
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18081:18081"
+    volumes:
+      # Ora's OWN pairing state — never norty's ./state/whatsapp.
+      - ./state/whatsapp:/app/session
+    command: ["node", "bridge.js", "--port", "18081", "--session", "/app/session"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -m 5 http://127.0.0.1:18081/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # postgres — ORA-16: Honcho needs Postgres anyway, so it is here
+  # regardless; Ora takes its own database `ora` on the same instance.
+  postgres:
+    image: postgres:16
+    container_name: ora-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_USER=ora
+      - POSTGRES_PASSWORD=ora
+      - POSTGRES_DB=ora
+    volumes:
+      - ./state/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ora"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # honcho — design/02 §1: a FRESH instance, empty workspace `ora`. Nora
+  # runs Honcho host-side on norty; there is no compose stanza anywhere in
+  # this tree to copy (Opus audit finding 10; design/reviews/response.md:
+  # "Mike brings the stanza; item 18 writes it only if he has not"). The
+  # exact self-host image/tag below is UNVERIFIED against Honcho's own
+  # self-hosting docs — confirm at 10:00, before relying on it; the
+  # `ora-verify` workspace round-trip tonight (item 12) ran against
+  # norty's existing instance, not this one.
+  honcho:
+    image: ghcr.io/plastic-labs/honcho:latest
+    container_name: ora-honcho
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DB_CONNECTION_URI=postgresql://ora:ora@postgres:5432/honcho
+      # Honcho's own LLM, pointed at the same Ollama Cloud endpoint and
+      # model as Ora (ORA-14) — no reasoning above `low` runs anywhere.
+      - LLM_OPENAI_COMPATIBLE_BASE_URL=https://ollama.com/v1
+      - LLM_OPENAI_COMPATIBLE_API_KEY=${OLLAMA_CLOUD_API_KEY}
+      - LLM_DEFAULT_MODEL=deepseek-v4-flash
+
+networks:
+  default:
+    name: ora

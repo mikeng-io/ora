@@ -63,3 +63,4 @@ decides is built on the day (event-day, source `—`).
 | `README.md` | prefab | new (design/00, 01) | — | mike | 2026-09-12 |
 | `docs/video-storyboard.md` | prefab | new (design/05 §3) | — | mike | 2026-09-12 |
 | `docs/social-post.md` | prefab | new | — | mike | 2026-09-12 |
+| `docker-compose.yml` | prefab | `nora/docker-compose.yml` (signal-cli, whatsapp-bridge stanzas, volumes stripped to Ora's own state dirs); postgres + honcho new — honcho image/tag `unverified: no self-host stanza exists anywhere in Nora's tree to copy; confirm against Honcho's own docs at 10:00` | — | mike | 2026-09-12 |
