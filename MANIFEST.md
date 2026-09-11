@@ -20,3 +20,5 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_store.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/logging.py` | prefab | new (grammar per design/01 §7) | — | mike | 2026-09-12 |
 | `tests/test_log_grammar.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/model.py` | prefab | `nora/app/composition.py::_RelevanceGateModelClient` shape | — | mike | 2026-09-12 |
+| `tests/test_model.py` | prefab | new | — | mike | 2026-09-12 |
