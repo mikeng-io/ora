@@ -30,3 +30,5 @@ decides is built on the day (event-day, source `—`).
 | `prompts/proactive.md` | prefab | `nora/dreamer/objectives/proactive.md` (v4) | `8cfc424dbc58` | mike | 2026-09-12 |
 | `prompts/turn.md` | prefab | assembled (design/07 item 6) — Opus-reviewed, 2 blockers + 4 should-fixes fixed | `67a4ab3ced51` | mike | 2026-09-12 |
 | `tests/test_prompts.py` | prefab | new | — | mike | 2026-09-12 |
+| `loop/render.py` | prefab | `nora/agent/prefill.py`, `nora/domain/decision_log.py`, `nora/language/{note_render,standing_render}.py` shapes; self_card/peer_card hedges verbatim | — | mike | 2026-09-12 |
+| `tests/test_render.py` | prefab | new | — | mike | 2026-09-12 |
