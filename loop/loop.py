@@ -32,7 +32,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from loop import decide_gate, decide_proactive, decide_turn, intent, orient, recall, tag, windows
+from loop import (
+    decide_gate,
+    decide_proactive,
+    decide_turn,
+    intent,
+    orient,
+    recall,
+    tag,
+    tracing,
+    windows,
+)
 from loop.config import Config, Room, load_config
 from loop.logging import LogSink
 from loop.memory import HonchoClient
@@ -674,9 +684,10 @@ async def main() -> None:
 
     import os
 
-    from openai import AsyncOpenAI
-
-    client = AsyncOpenAI(
+    # Before the OpenAI client is built, not after: the Langfuse drop-in
+    # patches at instantiation, so a client created first is never traced.
+    langfuse = tracing.init()
+    client = tracing.traced_openai(
         base_url=config.env.model_base_url,
         api_key=os.environ.get("OLLAMA_CLOUD_API_KEY", ""),
     )
@@ -731,6 +742,7 @@ async def main() -> None:
         # reconnect in one observer would take the whole agent dark.
         await asyncio.gather(*tasks, return_exceptions=True)
     finally:
+        tracing.flush(langfuse)
         for t in tasks:
             t.cancel()
         for t in tasks:
