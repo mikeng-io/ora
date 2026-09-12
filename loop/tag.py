@@ -289,6 +289,8 @@ async def handle_tag(
     route_fn: Any = _default_route,
     search_query: str | None = None,
     search_provider: Any = None,
+    weather_fn: Any = None,
+    honcho: Any = None,
     toolbox: Any = None,
     reasoning_effort: str = "low",
     timeout_seconds: float | None = None,
@@ -323,6 +325,8 @@ async def handle_tag(
             route_fn=route_fn,
             search_query=search_query,
             search_provider=search_provider,
+            weather_fn=weather_fn,
+            honcho=honcho,
             toolbox=toolbox,
             reasoning_effort=reasoning_effort,
             timeout_seconds=timeout_seconds,
@@ -364,6 +368,8 @@ async def _handle_tag(
     route_fn: Any,
     search_query: str | None,
     search_provider: Any,
+    weather_fn: Any,
+    honcho: Any,
     toolbox: Any,
     reasoning_effort: str,
     timeout_seconds: float | None,
@@ -386,9 +392,23 @@ async def _handle_tag(
     # The model picks its own tools and runs as many rounds as it needs.
     # Replaced a keyword matcher that chose them for it: that could not tell
     # «點樣去中環» from «中環好唔好玩», and the model can.
+    # Build the toolbox from the tool seams this function already takes, so a
+    # caller that passes `route_fn`/`search_provider` gets working tools
+    # rather than a silently empty box (caught in review: `toolbox or
+    # Toolbox()` made every such call resolve to "unavailable").
+    box = toolbox or toolcall.Toolbox(
+        route_fn=route_fn,
+        route_api_key=route_api_key,
+        search_provider=search_provider,
+        weather_fn=weather_fn,
+        honcho=honcho,
+        conversation_id=conversation_id,
+        store=store,
+        workspace=config.workspace,
+    )
     loop_result = await toolcall.run(
         model,
-        toolbox or toolcall.Toolbox(),
+        box,
         stage="tag",
         system=system,
         prompt=prompt,

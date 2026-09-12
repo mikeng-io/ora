@@ -26,12 +26,36 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import secrets
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 log = logging.getLogger("ora.toolcall")
 
 MAX_ROUNDS = 4
+
+_RELATIVE = re.compile(r"^\+(\d+)\s*([mhd])$", re.IGNORECASE)
+
+
+def _parse_when(raw: str) -> datetime | None:
+    """`+30m` / `+2h` / `+1d`, or an ISO timestamp. `None` when it cannot be
+    read — a reminder due at a time nobody can name is worse than no
+    reminder, because it fires at the wrong moment rather than never."""
+    text = raw.strip()
+    match = _RELATIVE.match(text)
+    if match:
+        amount = int(match.group(1))
+        unit = match.group(2).lower()
+        delta = {"m": timedelta(minutes=amount), "h": timedelta(hours=amount),
+                 "d": timedelta(days=amount)}[unit]
+        return datetime.now(UTC) + delta
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 @dataclass
@@ -162,6 +186,47 @@ def _schema() -> list[dict[str, Any]]:
         {
             "type": "function",
             "function": {
+                "name": "read_note",
+                "description": (
+                    "Read one open note in full by its id. The notes block you were given "
+                    "is only an INDEX — id, title, closing condition. Call this when you "
+                    "need the detail behind one of them before deciding anything."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {"note_id": {"type": "string"}},
+                    "required": ["note_id"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "remind",
+                "description": (
+                    "Decide that something should matter again LATER, and set when. Use "
+                    "this instead of saying something now when the right moment has not "
+                    "arrived — a birthday tomorrow morning, a booking nobody has made yet. "
+                    "At that time you will read the room again and may still decide to say "
+                    "nothing."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "note_id": {"type": "string", "description": "The open note this is about"},
+                        "when": {
+                            "type": "string",
+                            "description": "ISO 8601 timestamp, or '+2h' / '+30m'",
+                        },
+                        "intent": {"type": "string", "description": "What to raise, in your words"},
+                    },
+                    "required": ["note_id", "when", "intent"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "fetch",
                 "description": "Read a web page someone linked, when they are asking about it.",
                 "parameters": {
@@ -189,6 +254,8 @@ class Toolbox:
         weather_fn: Any = None,
         honcho: Any = None,
         conversation_id: str = "",
+        store: Any = None,
+        workspace: str = "",
     ) -> None:
         self._route_fn = route_fn
         self._route_api_key = route_api_key
@@ -197,6 +264,8 @@ class Toolbox:
         self._weather = weather_fn
         self._honcho = honcho
         self._conversation_id = conversation_id
+        self._store = store
+        self._workspace = workspace
 
     def schema(self) -> list[dict[str, Any]]:
         return _schema()
@@ -247,6 +316,39 @@ class Toolbox:
                     conversation_id=self._conversation_id,
                 )
                 return {"status": "ok" if ok else "unavailable", "stored": fact}
+            if name == "read_note":
+                if self._store is None:
+                    return {"status": "unavailable", "note": "notes not configured"}
+                row = await self._store.fetchrow(
+                    """SELECT id, title, closing_condition, anchor_at, anchor_place,
+                              room_label, created_at, strikes
+                         FROM note WHERE id = $1 AND workspace = $2 AND retired_at IS NULL""",
+                    str(args.get("note_id") or ""),
+                    self._workspace,
+                )
+                if row is None:
+                    return {"status": "nothing_found", "note": "no open note with that id"}
+                fields = {k: str(v) for k, v in dict(row).items() if v is not None}
+                return {"status": "ok", **fields}
+            if name == "remind":
+                if self._store is None:
+                    return {"status": "unavailable", "note": "reminders not configured"}
+                due = _parse_when(str(args.get("when") or ""))
+                if due is None:
+                    return {"status": "nothing_found", "note": "could not read that time"}
+                intent_text = str(args.get("intent") or "").strip()
+                note_id = str(args.get("note_id") or "").strip()
+                if not intent_text or not note_id:
+                    return {"status": "nothing_found", "note": "need a note and an intent"}
+                reminder_id = f"R{secrets.token_hex(3)}"
+                await self._store.execute(
+                    """INSERT INTO reminders
+                       (id, workspace, note_id, due_at, state, intent, intent_len, created_at)
+                       VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)""",
+                    reminder_id, self._workspace, note_id, due,
+                    intent_text, len(intent_text), datetime.now(UTC),
+                )
+                return {"status": "ok", "reminder_id": reminder_id, "due_at": due.isoformat()}
             if name == "fetch":
                 if self._search is None:
                     return {"status": "unavailable", "note": "fetch not configured"}

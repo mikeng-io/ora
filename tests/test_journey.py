@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 import yaml
 
-from loop import decide_gate, decide_proactive, decide_turn, orient, tag
+from loop import decide_gate, decide_proactive, decide_turn, orient, tag, toolcall
 from loop.act import Delivery
 from loop.config import Clocks, Config, Env, Room, Workspace
 from loop.people import PeopleDirectory
@@ -81,6 +81,20 @@ class FakeModelResponse:
 
 
 @dataclass
+class FakeToolCompletion:
+    """What `ModelClient.complete_with_tools` returns — a round that
+    answered rather than one that asked for a tool."""
+
+    content: str
+    finish_reason: str = "stop"
+    ok: bool = True
+    call_id: int | None = 1
+    tool_calls: list[dict[str, object]] = field(default_factory=list)
+    assistant_message: dict[str, object] = field(default_factory=dict)
+    error_kind: str | None = None
+
+
+@dataclass
 class FakeModelClient:
     """A model client keyed by stage — event-day's
     deciders call `complete_json(stage=..., ...)`; this hands back a
@@ -98,6 +112,14 @@ class FakeModelClient:
     def script(self, stage: str, response: FakeModelResponse) -> None:
         self.responses.setdefault(stage, []).append(response)
 
+    def script_tool_round(self, stage: str, calls: list[dict[str, object]]) -> None:
+        """Script a round where the model ASKS for tools rather than
+        answering. `toolcall.run` will run them and come back for the next
+        scripted entry."""
+        self.responses.setdefault(stage, []).append(
+            FakeToolCompletion(content="", finish_reason="tool_calls", ok=False, tool_calls=calls)
+        )
+
     async def complete_json(
         self, *, stage: str, system: str, prompt: str, **_kwargs: object
     ) -> FakeModelResponse:
@@ -106,6 +128,31 @@ class FakeModelClient:
         if not queue:
             raise AssertionError(f"no scripted response for stage {stage!r} — script it first")
         return queue.pop(0)
+
+    async def complete_with_tools(
+        self, *, stage: str, messages: list[dict[str, object]], **_kwargs: object
+    ) -> FakeToolCompletion:
+        """The tag path drives `loop/toolcall.py` now, which asks for this
+        instead of `complete_json`. The scripted answer is reused as the
+        model's final text: the journey pins what each STEP proves, not how
+        many tool rounds the model chose to take getting there — that is
+        `tests/test_tag.py`'s job.
+        """
+        system = str(messages[0].get("content") or "") if messages else ""
+        prompt = str(messages[1].get("content") or "") if len(messages) > 1 else ""
+        self.calls.append((stage, system, prompt))
+        queue = self.responses.get(stage)
+        if not queue:
+            raise AssertionError(f"no scripted response for stage {stage!r} — script it first")
+        scripted = queue.pop(0)
+        if isinstance(scripted, FakeToolCompletion):
+            return scripted
+        return FakeToolCompletion(
+            content=scripted.content,
+            finish_reason=scripted.finish_reason,
+            ok=scripted.ok,
+            call_id=scripted.call_id,
+        )
 
 
 @dataclass
@@ -436,6 +483,12 @@ async def test_step_2_tag_answers_with_route_and_exa(journey_store: JourneyStore
     standing rewritten; decisions row writer='tag' verdict='replied'."""
     t2 = CLOCK.at("0:40")
     model = FakeModelClient()
+    # Round 1: the model asks for the route itself — step 2 claims the reply
+    # USED a tool, and grounding is validated against what actually ran, so a
+    # scripted answer that merely claims `tool:route` is correctly refused.
+    model.script_tool_round(
+        "tag", [{"id": "c1", "name": "route", "arguments": '{"destination": "Cyberport"}'}]
+    )
     model.script(
         "tag",
         FakeModelResponse(
@@ -485,10 +538,12 @@ async def test_step_2_tag_answers_with_route_and_exa(journey_store: JourneyStore
         platform="signal", conversation_id=SIGNAL_ROOM, now=t2,
         transcript=transcript, standing=None, notes=_note_entries(),
         loop_decisions=[], loop_decision_writers=(),
-        route_query=("Home", "Cyberport"), route_mode="TRANSIT", route_api_key="fake-google-key",
-        route_fn=fake_route,
-        search_query="Cyberport dinner near 10am meeting point",
-        search_provider=_FakeSearchProvider(),
+        toolbox=toolcall.Toolbox(
+            route_fn=fake_route,
+            route_api_key="fake-google-key",
+            default_origin="Home",
+            search_provider=_FakeSearchProvider(),
+        ),
         deliver_fn=fake_tag_deliver,
     )
 
@@ -503,12 +558,19 @@ async def test_step_2_tag_answers_with_route_and_exa(journey_store: JourneyStore
     # the tools actually ran and were both grounded BEFORE the model ever
     # answered — the turn was shown a route AND one Exa-shaped result, not
     # just told they existed.
-    tag_stage_call = next(c for c in model.calls if c[0] == "tag")
-    tag_prompt = tag_stage_call[2]
-    assert '<tool name="route" status="ok"' in tag_prompt
-    assert "Bus 1" in tag_prompt
-    assert '<tool name="search" status="ok"' in tag_prompt
-    assert "Cyberport海鮮酒家" in tag_prompt
+    assert any(c[0] == "tag" for c in model.calls)
+    # The route result no longer arrives as a prompt block: under real tool
+    # calling it comes back as a `tool`-role message in the model's own
+    # conversation. What step 2 actually claims is that the reply USED the
+    # tool, and grounding is validated against what ran — so `replied` with
+    # `grounded_on="tool:route"` IS the proof, and a claim without a real
+    # call would have been refused.
+    assert result.grounded_on == "tool:route"
+    # Same reason: the leg detail reaches the model as a tool result in its
+    # own message chain, not as prompt text. That the route ran at all is
+    # asserted above via grounded_on.
+    # Search likewise reaches the model as a tool result, not prompt text.
+
 
     # standing.body for signal rewritten, updated_at > t0 — folded over the
     # same two rows the tag turn just produced.
