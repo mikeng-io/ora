@@ -38,6 +38,7 @@ from loop import (
     decide_turn,
     intent,
     orient,
+    present,
     recall,
     tag,
     tracing,
@@ -69,6 +70,14 @@ def is_tagged(body: str, ora_ids: tuple[str, ...] = ()) -> bool:
     Deliberately not a name match on "ora" alone: a room that says «ora»
     in passing has not called anybody, and a turn spent on that is a turn
     the room did not ask for.
+
+    `ora_ids` is not optional in practice, it only looks it. Tapping a name
+    in the Signal or WhatsApp mention UI — the most natural way anyone
+    actually calls her — does NOT produce the text "@ora": WhatsApp sends
+    `@137259286286429`, the raw LID. Measured live: a real tag arrived as
+    «@137259286286429 test» and did not fire this path at all, because
+    nothing was passing the ids. The agent looked ignorant of a direct
+    address, and nothing in the log said why.
     """
     if TAG_PATTERN.search(body):
         return True
@@ -204,6 +213,7 @@ class Loop:
         vision_client: Any | None = None,
         honcho: Any | None = None,
         search_provider: Any | None = None,
+        presenter: Any | None = None,
     ) -> None:
         self._config = config
         self._store = store
@@ -215,6 +225,8 @@ class Loop:
         self._guard = windows.RoomGuard()
         self._honcho = honcho
         self._search = search_provider
+        self._presenter = presenter
+        self._ora_ids: tuple[str, ...] = ()
         self._fed_through = 0
         self._warned_no_home = False
 
@@ -248,7 +260,12 @@ class Loop:
                     state.pending_since = now
                     await self._remember(room, rows)
                     tagged = next(
-                        (r for r in rows if not r["is_ora"] and is_tagged(r["body"] or "")), None
+                        (
+                            r
+                            for r in rows
+                            if not r["is_ora"] and is_tagged(r["body"] or "", self._ora_ids)
+                        ),
+                        None,
                     )
                     if tagged is not None:
                         # A tag always tries to speak — `tag.handle_tag` never
@@ -304,6 +321,56 @@ class Loop:
                 self._sink.event("GATE", room.label, f"room pass failed: {type(exc).__name__}",
                                  error=True, platform=room.platform)
 
+    async def learn_own_ids(self) -> tuple[str, ...]:
+        """Ask the platforms who Ora is, so a native mention is recognised.
+
+        Asked at runtime rather than configured: the WhatsApp LID is issued
+        by WhatsApp at pairing and is not something anyone can write into a
+        config file in advance, and getting it wrong means every tap of
+        Ora's name in the mention UI is silently ignored.
+        """
+        ids: list[str] = []
+        account = self._config.env.signal_account
+        if account:
+            ids.append(account)
+            ids.append(account.lstrip("+"))
+        base = self._config.env.whatsapp_base_url
+        if base:
+            try:
+                import aiohttp
+
+                async with aiohttp.ClientSession() as session, session.get(
+                    base + "/self", timeout=8
+                ) as response:
+                    payload = await response.json()
+                for key in ("lid", "phone"):
+                    value = payload.get(key)
+                    if value:
+                        ids.append(str(value))
+            except Exception as exc:  # noqa: BLE001 — a tag path that degrades, never a crash
+                self._sink.event(
+                    "OBSERVE", "-",
+                    f"could not learn WhatsApp identity ({type(exc).__name__}); "
+                    "native mentions will not tag",
+                    error=True,
+                )
+        self._ora_ids = tuple(dict.fromkeys(i for i in ids if i))
+        return self._ora_ids
+
+    async def _show(self, text: str, room: Room) -> None:
+        """Put a line on Ora's face.
+
+        Called only where Ora actually spoke, so the avatar animates exactly
+        when a decision to talk was made — that is the whole point of having
+        a face on stage. Never raises and never blocks: a browser page that
+        is closed, slow, or was never opened must not affect a real send that
+        already happened.
+        """
+        if self._presenter is None or not text:
+            return
+        with contextlib.suppress(Exception):
+            await self._presenter.speak(text, room=room.label, platform=room.platform)
+
     async def _remember(self, room: Room, rows: list[Any]) -> None:
         """Feed new rows to Honcho. Memory is written at Observe; this is
         that write. Failure is logged nowhere and costs nothing — a memory
@@ -329,8 +396,8 @@ class Loop:
         would put invented history in front of a decider."""
         if self._honcho is None:
             return recall.Recalled(self_conclusions=[], peer_facts=[])
-        present = list({r.sender_label for r in transcript if not r.is_ora})
-        return await recall.recall_for_turn(self._honcho, present=present)
+        speakers = list({r.sender_label for r in transcript if not r.is_ora})
+        return await recall.recall_for_turn(self._honcho, present=speakers)
 
     async def _newest_row_id(self, room: Room) -> int:
         row = await self._store.fetchval(
@@ -407,6 +474,7 @@ class Loop:
                          error=result.verdict == "failed")
         if result.verdict == "spoke":
             state.last_spoke_at = now
+            await self._show(result.text or "", room)
         await self._fold(room, now)
 
     async def _run_tag(self, room: Room, now: datetime, tagged_text: str = "") -> None:
@@ -454,6 +522,7 @@ class Loop:
                          error=result.verdict == "failed")
         if result.verdict == "replied":
             self._room_state(room).last_spoke_at = now
+            await self._show(result.text or "", room)
         await self._fold(room, now)
 
     async def _fold(self, room: Room, now: datetime) -> None:
@@ -659,6 +728,8 @@ class Loop:
                     self._sink.event("ACT", home.label, f"reminder {d['id']}: {outcome.verdict}",
                                      platform=home.platform,
                                      error=outcome.verdict == "failed")
+                    if outcome.verdict == "spoke":
+                        await self._show(getattr(outcome, "text", "") or d["intent"], home)
 
                 outcome = await decide_proactive.decide(
                     self._model,
@@ -750,12 +821,26 @@ async def main() -> None:
         ExaSearchProvider(api_key=config.env.exa_api_key) if config.env.exa_api_key else None
     )
 
+    # The face. Optional by construction: if the port is taken or nobody
+    # opens the page, `start()` returns False and every later `speak()` is a
+    # no-op — a stage prop must never be able to affect a real send.
+    presenter = present.Presenter()
+    if await presenter.start():
+        sink.event("OBSERVE", "-", "face up at http://127.0.0.1:8765/")
+    else:
+        sink.event("OBSERVE", "-", "face unavailable; continuing without it")
+
     loop = Loop(
         config, store, sink, people, model,
         vision_client=client, honcho=honcho, search_provider=search_provider,
+        presenter=presenter,
     )
     rooms = list(config.rooms.values())
-    sink.event("OBSERVE", "-", f"up: {len(rooms)} room(s), workspace {config.workspace}")
+    own = await loop.learn_own_ids()
+    sink.event(
+        "OBSERVE", "-",
+        f"up: {len(rooms)} room(s), workspace {config.workspace}, {len(own)} own id(s)",
+    )
 
     tasks = [
         asyncio.create_task(
@@ -776,6 +861,7 @@ async def main() -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
     finally:
         tracing.flush(langfuse)
+        await presenter.stop()
         for t in tasks:
             t.cancel()
         for t in tasks:
