@@ -7,7 +7,7 @@ from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
-# path -> sha12, as recorded in MANIFEST.md, recomputed from the nora tree
+# path -> sha12, as recorded in MANIFEST.md, recomputed from the reference project's tree
 # tonight (design/07 ground rules: recompute, do not trust 03 §1 blindly).
 EXPECTED_SHA12 = {
     "gate.md": "2d3012ecbdaa",

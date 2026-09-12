@@ -1,5 +1,5 @@
 """Honcho client: feed / peer_card / representation / self-card read
-(design/07 item 12). Shape from `nora/infra/honcho/client.py`, trimmed to
+(design/07 item 12). Shape from `reference/infra/honcho/client.py`, trimmed to
 one workspace (no `WorkspaceRouter` — Ora has exactly one) and the four
 verbs Ora uses: `feed` at Observe, `peer_card` + `representation` (the
 self-card read is `representation(peer_id=ai_peer)` with no `target`) on
@@ -11,7 +11,7 @@ failure — an outage must not block a reply.
 
 Stamp-stripping kept verbatim (`_STAMP`/`_ID`/`_PATTERN`/`_CONTRADICTION`):
 Honcho's batch-level timestamp is not a recency signal at conclusion
-granularity (Nora's measured finding — 102 documents, six stamps, one
+granularity (the reference project's measured finding — 102 documents, six stamps, one
 shared by 77), and rendering it turns a one-time request into what reads
 as a standing directive (`render.render_self_card`'s hedge is the other
 half of this fix).
@@ -197,7 +197,7 @@ class HonchoClient:
     async def peer_card(self, *, peer_id: str) -> list[str]:
         """Durable recall about a peer. `[]` on any failure — a missing
         card is normal. `GET /peers/{id}/card` -> `{"peer_card": [...] |
-        null}` (Nora's own live-verified shape — this read `content` as a
+        null}` (the reference project's own live-verified shape — this read `content` as a
         string for the life of a deployment before that was caught)."""
         result = await self._get(self._url(f"/peers/{peer_id}/card"), self.card_timeout)
         card = (result or {}).get("peer_card")

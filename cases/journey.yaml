@@ -2,7 +2,7 @@
 # DATA for tests/test_journey.py's six xfail(strict=True) placeholders
 # (design/07 item 16) — event-day fills the six bodies against this fixture,
 # it does not rewrite the script.
-# source (shape only, no sha): nora's
+# source (shape only, no sha): the reference project's
 # tests/integration/test_ambient_loop_positive_control.py fixture.
 
 workspace: demo

@@ -1,14 +1,14 @@
 # Mike's stack (design/01 §2, design/02 §1): signal-cli, whatsapp-bridge,
 # postgres:16, honcho. design/07 item 18: written only because no compose
 # file existed in this repo yet; the two bridge stanzas are copied from
-# ~/Workplace/nora/docker-compose.yml with Nora's volumes stripped to
+# the reference project's own docker-compose.yml with the reference project's volumes stripped to
 # Ora's own state directories — Ora links as a SEPARATE device (design/02
 # §2) and must never share norty's ./state/signal-cli or ./state/whatsapp.
 #
 # EVERY published port below is bound to 127.0.0.1 ONLY, deliberately.
 # signal-cli's JSON-RPC (send-as-Mike), whatsapp-bridge's send endpoint,
 # Postgres, and Honcho's API all carry no authentication of their own —
-# Nora's own compose keeps the equivalent two bridges on a private,
+# the reference project's own compose keeps the equivalent two bridges on a private,
 # unpublished network for exactly this reason. Ora runs as a plain
 # process on the same host (design/02 §1), not inside this compose
 # project, so it needs *some* published port — but 0.0.0.0 would offer
@@ -22,7 +22,7 @@
 # the 10:00-10:30 smoke (design/05 §1).
 
 services:
-  # signal-cli — copied from nora/docker-compose.yml, same image tag
+  # signal-cli — copied from the reference project's docker-compose.yml, same image tag
   # (design/02 §1: "same image as norty"). Ora's container starts with NO
   # prior state: it is linked as a second device of the SAME account from
   # the phone (design/02 §2), not registered fresh — `signal-cli link -n
@@ -36,7 +36,7 @@ services:
       - "127.0.0.1:18080:18080"
     volumes:
       # Ora's OWN identity/state — never norty's ./state/signal-cli. Losing
-      # this loses Ora's linked-device registration, not Nora's.
+      # this loses Ora's linked-device registration, not the reference project's.
       - ./state/signal-cli:/data/signal-cli
     environment:
       - XDG_DATA_HOME=/data
@@ -59,7 +59,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
-  # whatsapp-bridge — copied from nora/docker-compose.yml, same image tag.
+  # whatsapp-bridge — copied from the reference project's docker-compose.yml, same image tag.
   # FIRST RUN needs pairing (design/02 §2): a dedicated bot number, paired
   # by CODE into that phone's WhatsApp — Linked Devices → Link with phone
   # number:
@@ -105,7 +105,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # honcho — design/02 §1: a FRESH instance, empty workspace `ora`. Nora
+  # honcho — design/02 §1: a FRESH instance, empty workspace `ora`. the reference project
   # runs Honcho host-side on norty; there is no compose stanza anywhere in
   # this tree to copy (Opus audit finding 10; design/reviews/response.md:
   # "Mike brings the stanza; item 18 writes it only if he has not"). The

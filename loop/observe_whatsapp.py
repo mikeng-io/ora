@@ -1,12 +1,12 @@
 """whatsapp-bridge SSE -> `messages` rows (design/07 item 9).
 
-`WhatsAppListener` is `nora/platform/whatsapp/listener.py`, effectively
+`WhatsAppListener` is `reference/platform/whatsapp/listener.py`, effectively
 byte-for-byte (long-lived GET, full-jitter exponential backoff, heartbeat/
 dropped handled at listener level and never reaching the parser).
 
-`parse_event` is a TRIMMED `nora/platform/whatsapp/parser.py::parse_event`:
+`parse_event` is a TRIMMED `reference/platform/whatsapp/parser.py::parse_event`:
 no media, no reactions, no mentions, no quotes — group text only, and no
-JID-form disambiguation (`nora/platform/whatsapp/jid.py`'s phone/lid forms)
+JID-form disambiguation (`reference/platform/whatsapp/jid.py`'s phone/lid forms)
 since Ora resolves people from the raw `sender_jid` `people.toml` carries,
 not a normalized form. `from_me` is dropped at parse time (R-12's first
 pass) — load-bearing even inside a listed room, same as Signal's own-send

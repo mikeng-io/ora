@@ -1,7 +1,7 @@
 # CLAUDE.md — Ora
 
 Ora is a one-day build: a net-new ambient-loop agent for the AI Tinkerers
-hackathon (2026-09-12), distilled from Nora's building blocks. **The spec is
+hackathon (2026-09-12), distilled from the reference project's building blocks. **The spec is
 `design/` — read it in full before touching anything.** `design/07` is the
 overnight work order; `design/03 §2` is the event-day one.
 
@@ -40,11 +40,11 @@ line, run four axes and say which failed:
 
 The three compose: 4C is a CMS act over a claim; Grounding is CMS over
 evidence. When a model judges badly, **read its input before rewriting its
-instruction** (Nora's measured lesson, `~/.claude/CMS.md`).
+instruction** (the reference project's measured lesson, `~/.claude/CMS.md`).
 
 ## What Ora is, and how strict to be
 
-Ora is an **MVP for a demo**, not Nora. The thinking discipline above is
+Ora is an **MVP for a demo**, not the reference project. The thinking discipline above is
 not negotiable — it is how a wrong claim gets caught before it reaches the
 stage. The *process* around it is MVP-grade, deliberately:
 
@@ -57,23 +57,23 @@ stage. The *process* around it is MVP-grade, deliberately:
 | `ruff` + `pytest` before a commit | mypy strictness, import contracts, CI |
 | one commit per item, plain Conventional Commit subject | footers, PR bodies, merge messages |
 
-If a rule from Nora's `AGENTS.md` is not in this file, it does not apply.
+If a rule from the reference project's `AGENTS.md` is not in this file, it does not apply.
 When in doubt: does skipping it risk the demo lying? If no, skip it.
 
-## Repo rules (Ora only — different from Nora)
+## Repo rules (Ora only — different from the reference project)
 
 - **Work on `master`. No worktrees, no branches, no PRs.** One commit per
   item, Conventional Commit subject, body names the manifest line. Never
   `reset`; amending the last local commit is fine.
-- **Never** write under `~/Workplace/nora`; never change norty's config,
-  compose or `.env`. Read Nora's tree to copy from; recompute every sha you
+- **Never** write under `the reference project's checkout`; never change norty's config,
+  compose or `.env`. Read the reference project's tree to copy from; recompute every sha you
   cite.
 - `.env` is git-ignored and stays that way. Read keys from it; never print,
   log, or copy a key into any file or commit.
 - `MANIFEST.md`: one line per file — `path · prefab|event-day · source ·
   sha · who · when` — **appended when the file is created**, never
   reconstructed. It is the eligibility evidence (`design/00 §2`).
-- Prompt bodies under `prompts/` are Nora's measured instructions. **Do not
+- Prompt bodies under `prompts/` are the reference project's measured instructions. **Do not
   edit them.** `turn.md` is the one prompt assembled here and it is a header
   contract, not a judgement (`design/07` item 6).
 - Model: `deepseek-v4-flash` on Ollama Cloud, `reasoning_effort` `none` or
@@ -105,5 +105,5 @@ When in doubt: does skipping it risk the demo lying? If no, skip it.
 - Design bundle: `design/` (`00`–`07`, `_index.yaml`), audits and the
   response: `design/reviews/`.
 - Runbook for the day: `RUNBOOK.md`. Story, diagram, demo table: `README.md`.
-- Nora (read-only reference): `~/Workplace/nora` — master, `434282db` or
+- the reference project (read-only reference): `the reference project's checkout` — master, `434282db` or
   later. Its rules (`AGENTS.md`) do **not** apply here; this file does.

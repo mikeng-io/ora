@@ -1,12 +1,12 @@
 """Prompt blocks with their hedge notes (design/01 §2, §4; design/07 item 7).
 
-Shape and hedge texts carried over from Nora's own prefill and decision-log
-renderers — `nora/agent/prefill.py`'s `_context_header`/`_transcript_block`/
-`_self_card_block`/`_peer_card_block`, `nora/domain/decision_log.py`'s
-`render_decisions`/`_note_for`, `nora/language/{note_render,standing_render}.py`
+Shape and hedge texts carried over from the reference project's own prefill and decision-log
+renderers — `reference/agent/prefill.py`'s `_context_header`/`_transcript_block`/
+`_self_card_block`/`_peer_card_block`, `reference/domain/decision_log.py`'s
+`render_decisions`/`_note_for`, `reference/language/{note_render,standing_render}.py`
 — adapted to Ora's own row shapes (a note carries a closing condition and a
-room label here; Nora's does not). No sha to cite (03 §1: shape, not a byte
-copy); the two hedge blocks below (`self_card`, `peer_card`) keep Nora's
+room label here; the reference project's does not). No sha to cite (03 §1: shape, not a byte
+copy); the two hedge blocks below (`self_card`, `peer_card`) keep the reference project's
 wording verbatim because the safety property IS the wording, not the shape
 around it.
 
@@ -33,14 +33,14 @@ def escape_attr(text: object) -> str:
 
 def age(ts: datetime, now: datetime) -> str:
     """How long ago, for a block a model has to judge freshness from
-    (Nora's measured lesson: rendering an age per row cut the gate's error
+    (the reference project's measured lesson: rendering an age per row cut the gate's error
     rate by two thirds over 40 labelled cases — the reason it is not a bare
     timestamp anywhere in this module).
 
-    Nora's own thresholds collapse everything under 90s to "just now" — fine
+    the reference project's own thresholds collapse everything under 90s to "just now" — fine
     at her hour-scale cadence, but Ora's whole clock lives inside that band
     (`settle_seconds=15`, `cooldown_seconds=60`, `remind_lead_seconds=60`;
-    design/01 §5, ORA-11: none of Nora's values travel), so a 10s-old row and
+    design/01 §5, ORA-11: none of the reference project's values travel), so a 10s-old row and
     a 55s-old one would read identically. Ora's floor is 10s instead."""
     seconds = max(0, int((now - ts).total_seconds()))
     if seconds < 10:
@@ -67,7 +67,7 @@ def render_media_marker(shortid: str, title: str, description: str) -> str:
     abc123]` when nothing has been comprehended yet — an index entry
     claims nothing about the bytes (design/19-media-comprehension.md §2's
     rule, kept). Never the FULL `content` field (transcripts render
-    title+description only, the same budget argument as Nora's own
+    title+description only, the same budget argument as the reference project's own
     `comprehension_render_chars`; `content` is for a fetch tool, not
     every turn's transcript)."""
     parts = " — ".join(p for p in (title, description) if p)
@@ -186,7 +186,7 @@ def render_notes(notes: list[NoteEntry], *, now: datetime) -> str:
 
 def _loop_decisions_note(writers: tuple[str, ...]) -> str:
     """The block's own note, built from the writers it actually carries
-    (Nora's `decision_log._note_for`: a decider the caller excluded is
+    (the reference project's `decision_log._note_for`: a decider the caller excluded is
     stated as absent rather than silently missing — otherwise a reader sees
     "no proactive_decide row" and reads it as "nothing was raised", a false
     fact handed to a decider)."""
@@ -234,7 +234,7 @@ def render_loop_decisions(
 
 
 def render_self_card(conclusions: list[str]) -> str:
-    """Nora's hedge, verbatim (`nora/agent/prefill.py::_self_card_block`):
+    """the reference project's hedge, verbatim (`reference/agent/prefill.py::_self_card_block`):
     the safety property here IS the wording — a conclusion presented as «who
     you are» competes with identity and wins; presented as «you said this»,
     it is a record she may contradict."""
@@ -252,7 +252,7 @@ def render_self_card(conclusions: list[str]) -> str:
 
 
 def render_peer_card(person: str, facts: list[str]) -> str:
-    """Nora's hedge, verbatim (`nora/agent/prefill.py::_peer_card_block`)."""
+    """the reference project's hedge, verbatim (`reference/agent/prefill.py::_peer_card_block`)."""
     if not facts:
         return ""
     who = escape_attr(person)

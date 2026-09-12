@@ -20,56 +20,56 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_store.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/logging.py` | prefab | new (grammar per design/01 §7) | — | mike | 2026-09-12 |
 | `tests/test_log_grammar.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/model.py` | prefab | `nora/app/composition.py::_RelevanceGateModelClient` shape | — | mike | 2026-09-12 |
+| `loop/model.py` | prefab | `reference/app/composition.py::_RelevanceGateModelClient` shape | — | mike | 2026-09-12 |
 | `tests/test_model.py` | prefab | new | — | mike | 2026-09-12 |
-| `prompts/gate.md` | prefab | `nora/doctrine/participation.md` (v5) | `2d3012ecbdaa` | mike | 2026-09-12 |
-| `prompts/fold.md` | prefab | `nora/dreamer/objectives/standing-debrief.md` (v5) | `e6539a3abeb0` | mike | 2026-09-12 |
-| `prompts/verdict.md` | prefab | `nora/dreamer/objectives/standing-verdict.md` (v1) | `1d96241861cb` | mike | 2026-09-12 |
-| `prompts/notes.md` | prefab | `nora/dreamer/objectives/note-candidates.md` (v5) | `5de105577f58` | mike | 2026-09-12 |
-| `prompts/curation.md` | prefab | `nora/dreamer/objectives/note-curation.md` (v5) | `39e362cd5799` | mike | 2026-09-12 |
-| `prompts/proactive.md` | prefab | `nora/dreamer/objectives/proactive.md` (v4) | `8cfc424dbc58` | mike | 2026-09-12 |
+| `prompts/gate.md` | prefab | `reference/doctrine/participation.md` (v5) | `2d3012ecbdaa` | mike | 2026-09-12 |
+| `prompts/fold.md` | prefab | `reference/dreamer/objectives/standing-debrief.md` (v5) | `e6539a3abeb0` | mike | 2026-09-12 |
+| `prompts/verdict.md` | prefab | `reference/dreamer/objectives/standing-verdict.md` (v1) | `1d96241861cb` | mike | 2026-09-12 |
+| `prompts/notes.md` | prefab | `reference/dreamer/objectives/note-candidates.md` (v5) | `5de105577f58` | mike | 2026-09-12 |
+| `prompts/curation.md` | prefab | `reference/dreamer/objectives/note-curation.md` (v5) | `39e362cd5799` | mike | 2026-09-12 |
+| `prompts/proactive.md` | prefab | `reference/dreamer/objectives/proactive.md` (v4) | `8cfc424dbc58` | mike | 2026-09-12 |
 | `prompts/turn.md` | prefab | assembled (design/07 item 6) — Opus-reviewed, 2 blockers + 4 should-fixes fixed | `67a4ab3ced51` | mike | 2026-09-12 |
 | `tests/test_prompts.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/render.py` | prefab | `nora/agent/prefill.py`, `nora/domain/decision_log.py`, `nora/language/{note_render,standing_render}.py` shapes; self_card/peer_card hedges verbatim | — | mike | 2026-09-12 |
+| `loop/render.py` | prefab | `reference/agent/prefill.py`, `reference/domain/decision_log.py`, `reference/language/{note_render,standing_render}.py` shapes; self_card/peer_card hedges verbatim | — | mike | 2026-09-12 |
 | `tests/test_render.py` | prefab | new | — | mike | 2026-09-12 |
-| `cases/gate/gate.yaml` | prefab | `nora/evals/cases/relevance_gate/gate.yaml` (12 of 40 cases, unedited) | — | mike | 2026-09-12 |
-| `cases/participation/participation.yaml` | prefab | `nora/evals/cases/participation/participation.yaml` (3 twin pairs, unedited) | — | mike | 2026-09-12 |
+| `cases/gate/gate.yaml` | prefab | `reference/evals/cases/relevance_gate/gate.yaml` (12 of 40 cases, unedited) | — | mike | 2026-09-12 |
+| `cases/participation/participation.yaml` | prefab | `reference/evals/cases/participation/participation.yaml` (3 twin pairs, unedited) | — | mike | 2026-09-12 |
 | `cases/journey.yaml` | prefab | new (design/04 §2 shape) | — | mike | 2026-09-12 |
 | `cases/run_gate.py` | prefab | new | — | mike | 2026-09-12 |
 | `cases/__init__.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/config.py` (workspace property) | prefab | new | — | mike | 2026-09-12 |
 | `loop/people.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/observe_signal.py` | prefab | `nora/platform/signal/{listener,parser}.py` (listener near-verbatim; parser trimmed — no media/reactions/stickers/mentions/quotes; own-send + syncMessage drop kept) | — | mike | 2026-09-12 |
-| `loop/observe_whatsapp.py` | prefab | `nora/platform/whatsapp/{listener,parser}.py` (listener near-verbatim; parser trimmed; from_me drop kept) | — | mike | 2026-09-12 |
+| `loop/observe_signal.py` | prefab | `reference/platform/signal/{listener,parser}.py` (listener near-verbatim; parser trimmed — no media/reactions/stickers/mentions/quotes; own-send + syncMessage drop kept) | — | mike | 2026-09-12 |
+| `loop/observe_whatsapp.py` | prefab | `reference/platform/whatsapp/{listener,parser}.py` (listener near-verbatim; parser trimmed; from_me drop kept) | — | mike | 2026-09-12 |
 | `tests/test_allowlist.py` | prefab | new | — | mike | 2026-09-12 |
 | live: norty's signal-cli/whatsapp-bridge over Tailscale | prefab | `unverified: ports 18080/18081 bind to 127.0.0.1 on norty (docs/runbook.md); not reachable at norty's Tailscale ip 100.117.189.77; no tunnel attempted per "never touch norty"` | — | mike | 2026-09-12 |
-| `loop/act.py` | prefab | `nora/platform/signal/send.py`, `nora/platform/whatsapp/send.py` (request shape), `nora/agent/outbound.py::OutboundComposer._scan` (mention scan, simplified: no roster confirmation) — WhatsApp outbound mentions are Ora's own addition, undocumented on the bridge, unverified until a real send | — | mike | 2026-09-12 |
+| `loop/act.py` | prefab | `reference/platform/signal/send.py`, `reference/platform/whatsapp/send.py` (request shape), `reference/agent/outbound.py::OutboundComposer._scan` (mention scan, simplified: no roster confirmation) — WhatsApp outbound mentions are Ora's own addition, undocumented on the bridge, unverified until a real send | — | mike | 2026-09-12 |
 | `tests/test_act.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/decisions.py` | prefab | schema-side only (insert/select); shape from `nora/domain/decision_log.py`'s `recent_for` filter-before-bound discipline — the log's LOGIC (who writes) is event-day | — | mike | 2026-09-12 |
+| `loop/decisions.py` | prefab | schema-side only (insert/select); shape from `reference/domain/decision_log.py`'s `recent_for` filter-before-bound discipline — the log's LOGIC (who writes) is event-day | — | mike | 2026-09-12 |
 | `loop/gate_log.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_decisions.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/memory.py` | prefab | `nora/infra/honcho/client.py` shape (feed/peer_card/representation; stamp-stripping kept verbatim), trimmed to one workspace — no `WorkspaceRouter` | — | mike | 2026-09-12 |
+| `loop/memory.py` | prefab | `reference/infra/honcho/client.py` shape (feed/peer_card/representation; stamp-stripping kept verbatim), trimmed to one workspace — no `WorkspaceRouter` | — | mike | 2026-09-12 |
 | `tests/test_memory.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/search.py` | prefab | `nora/infra/search/exa.py`, `nora/infra/search/_shared.py` shape (three-state contract, untrusted wrap kept) | — | mike | 2026-09-12 |
+| `loop/search.py` | prefab | `reference/infra/search/exa.py`, `reference/infra/search/_shared.py` shape (three-state contract, untrusted wrap kept) | — | mike | 2026-09-12 |
 | `tests/test_search.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/route.py` | prefab | `nora/infra/routes/{client,directions,http}.py` shape (Routes API v2, trimmed — address waypoints directly, no separate Places resolution) | — | mike | 2026-09-12 |
+| `loop/route.py` | prefab | `reference/infra/routes/{client,directions,http}.py` shape (Routes API v2, trimmed — address waypoints directly, no separate Places resolution) | — | mike | 2026-09-12 |
 | `tests/test_route.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/calendar.py` | prefab | new (stub — request body a documented TODO) | — | mike | 2026-09-12 |
 | `tests/test_calendar_stub.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
-| `tests/test_journey.py` | prefab | new (shape from `nora/tests/integration/test_ambient_loop_positive_control.py`'s fixture, no sha) | — | mike | 2026-09-12 |
+| `tests/test_journey.py` | prefab | new (shape from `reference/tests/integration/test_ambient_loop_positive_control.py`'s fixture, no sha) | — | mike | 2026-09-12 |
 | `RUNBOOK.md` | prefab | new (design/04 §1-2, §4) | — | mike | 2026-09-12 |
 | `README.md` | prefab | new (design/00, 01) | — | mike | 2026-09-12 |
 | `docs/video-storyboard.md` | prefab | new (design/05 §3) | — | mike | 2026-09-12 |
 | `docs/social-post.md` | prefab | new | — | mike | 2026-09-12 |
-| `docker-compose.yml` | prefab | `nora/docker-compose.yml` (signal-cli, whatsapp-bridge stanzas, volumes stripped to Ora's own state dirs); postgres + honcho new — honcho image/tag `unverified: no self-host stanza exists anywhere in Nora's tree to copy; confirm against Honcho's own docs at 10:00` | — | mike | 2026-09-12 |
+| `docker-compose.yml` | prefab | `the reference project's docker-compose.yml` (signal-cli, whatsapp-bridge stanzas, volumes stripped to Ora's own state dirs); postgres + honcho new — honcho image/tag `unverified: no self-host stanza exists anywhere in the reference project's tree to copy; confirm against Honcho's own docs at 10:00` | — | mike | 2026-09-12 |
 | `design/06-decisions.md` ORA-18 | prefab | new — media returns (images only), scope decision | — | mike | 2026-09-12 |
 | `schema.sql` (media_objects, messages.media_sha256) | prefab | new (design/19-media-comprehension.md shape, trimmed — no provenance JSON, no video-chunk fields) | — | mike | 2026-09-12 |
-| `loop/media_store.py` | prefab | new (plain sha256-keyed storage — not Nora's rustfs custody) | — | mike | 2026-09-12 |
+| `loop/media_store.py` | prefab | new (plain sha256-keyed storage — not the reference project's rustfs custody) | — | mike | 2026-09-12 |
 | `tests/test_media_store.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/vision.py` | prefab | new (design/19-media-comprehension.md §2's three-field shape; model chosen after live-testing kimi-k3 vs glm-5.3-flash — see ORA-18) | — | mike | 2026-09-12 |
 | `tests/test_vision.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/observe_signal.py` (image capture) | prefab | `nora/platform/signal/media.py` shape (`getAttachment`) — `unverified: no real attachment has ever arrived on Nora's own deployment either; this is Nora's own measured-not-proven claim, not a stronger one` | — | mike | 2026-09-12 |
+| `loop/observe_signal.py` (image capture) | prefab | `reference/platform/signal/media.py` shape (`getAttachment`) — `unverified: no real attachment has ever arrived on the reference project's own deployment either; this is the reference project's own measured-not-proven claim, not a stronger one` | — | mike | 2026-09-12 |
 | `tests/test_observe_signal_media.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/render.py` (render_media_marker, join_media_into_body) | prefab | new (design/19-media-comprehension.md §3's render-time join, adapted) | — | mike | 2026-09-12 |

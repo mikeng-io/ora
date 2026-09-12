@@ -1,5 +1,5 @@
 """Exa client: web_search / web_fetch (design/07 item 13). Shape from
-`nora/infra/search/exa.py` + `_shared.py`, trimmed to Ora's own scope (Exa
+`reference/infra/search/exa.py` + `_shared.py`, trimmed to Ora's own scope (Exa
 on the tag turn only, ORA-7). Never raises; three states (R-27, kept):
 `ok`, `nothing_found` (the provider's own honest miss), `unavailable` (the
 call itself failed — "I couldn't check", never "nothing found").

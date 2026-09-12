@@ -1,10 +1,10 @@
 """signal-cli SSE -> `messages` rows (design/07 item 9; images, ORA-18).
 
-`SignalListener` is `nora/platform/signal/listener.py`, effectively
+`SignalListener` is `reference/platform/signal/listener.py`, effectively
 byte-for-byte (long-lived GET, full-jitter exponential backoff, one bad
 event logged and skipped, a raising handler never killing the stream).
 
-`parse_event` is a TRIMMED `nora/platform/signal/parser.py::parse_event`:
+`parse_event` is a TRIMMED `reference/platform/signal/parser.py::parse_event`:
 no reactions, no stickers, no mentions, no quotes — group text (and now
 image attachments, ORA-18) only. Two rules kept because they are
 load-bearing, not incidental (Opus audit finding 12): a `syncMessage` (no
@@ -15,8 +15,8 @@ because the sync row's conversation_id IS the listed group.
 `SignalObserver.handle_event` is the allowlist gate: parse, then check
 `rooms.toml` — dropped before any store write, DROP logged once per room.
 An image attachment is fetched over the SAME JSON-RPC endpoint `send`
-already uses (`getAttachment`, `nora/platform/signal/media.py`'s shape —
-Nora's own docstring there admits the SUCCESS shape was never verified
+already uses (`getAttachment`, `reference/platform/signal/media.py`'s shape —
+the reference project's own docstring there admits the SUCCESS shape was never verified
 live because no attachment ever arrived on that deployment; this is the
 same unverified-until-proven shape, not a stronger claim).
 """
@@ -49,7 +49,7 @@ log = logging.getLogger("ora.signal.listener")
 
 _IMAGE_TYPES_ALLOWED_PREFIX = "image/"
 
-# 8 MiB — Nora's own measured ceiling for still images ([media] vision_max_bytes
+# 8 MiB — the reference project's own measured ceiling for still images ([media] vision_max_bytes
 # in config.example.toml, "chosen for images"; her video path needs a wider one
 # because clips are routinely larger, but Ora has no video path). Checked
 # against the platform's CLAIMED size before fetching, and against the real
@@ -229,9 +229,9 @@ async def fetch_attachment(
     base_url: str, platform_id: str, *, timeout_seconds: float = 8.0
 ) -> bytes | None:
     """`getAttachment` over the same JSON-RPC endpoint `send` already uses
-    (`nora/platform/signal/media.py`'s shape). `None` for anything that is
+    (`reference/platform/signal/media.py`'s shape). `None` for anything that is
     not a real success — unreachable, an error envelope, or a payload this
-    adapter cannot decode. UNVERIFIED against a real attachment (Nora's
+    adapter cannot decode. UNVERIFIED against a real attachment (the reference project's
     own docstring: "no attachment has ever arrived on this deployment" —
     the success shape here is the same measured-not-proven claim)."""
     url = f"{base_url.rstrip('/')}/api/v1/rpc"

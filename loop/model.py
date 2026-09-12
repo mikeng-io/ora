@@ -1,11 +1,11 @@
 """OpenAI-compatible client (Ollama Cloud) — raw `json_object` completions
-only, never a structured-output tool call for a verdict (Nora #186).
+only, never a structured-output tool call for a verdict (the reference project's #186).
 
-What a raw client owes (`nora/app/composition.py::_RelevanceGateModelClient`):
+What a raw client owes (`reference/app/composition.py::_RelevanceGateModelClient`):
 an explicit `asyncio.wait_for` (the bare client default is 600s x retries and
 this call HOLDS the conversation's slot), a `finish_reason` read (a raw
 completion returns `"length"` on a cut-off rather than raising), and a usage
-annotation. This shape adds one thing Ora needs that Nora's callers get from
+annotation. This shape adds one thing Ora needs that the reference project's callers get from
 a span: every call, ok or not, becomes a `model_calls` row (design/01 §3) so
 a wrong verdict is one join away from its prompt digest and latency.
 """

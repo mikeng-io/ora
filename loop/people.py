@@ -1,7 +1,7 @@
 """`people.toml` -> (platform, id) -> person, name; reverse map for sends
 (design/01 §2; design/02 §4). The only place a human's two ids meet.
 
-An unresolvable name goes out as plain text, never a guess (Nora #211's
+An unresolvable name goes out as plain text, never a guess (the reference project's #211's
 rule) — `reverse` returning `None` is that contract's other half.
 """
 
@@ -55,7 +55,7 @@ class PeopleDirectory:
     def reverse(self, platform: str, name: str) -> str | None:
         """`@Name -> platform id`, for a real mention (act.py). `None` for
         an unresolvable name — the caller's fallback is plain text, never a
-        guess (Nora #211)."""
+        guess (the reference project's #211)."""
         person = self._by_name.get(name)
         if person is None:
             return None
@@ -65,5 +65,5 @@ class PeopleDirectory:
     def names_longest_first(self) -> list[str]:
         """Every known name, longest first — `act.py`'s `@handle` scan needs
         longest-match so a shorter name that prefixes a longer one never
-        steals the match (Nora `outbound._handle_index`'s rule)."""
+        steals the match (the reference project `outbound._handle_index`'s rule)."""
         return sorted(self._by_name, key=len, reverse=True)

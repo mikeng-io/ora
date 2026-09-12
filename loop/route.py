@@ -1,10 +1,10 @@
 """Google Directions (Routes API v2) — a real route for step 2, tag turn
-only, beside Exa (design/07 item 13). Shape from `nora/infra/routes/{client,
+only, beside Exa (design/07 item 13). Shape from `reference/infra/routes/{client,
 directions,http}.py`, trimmed: place NAMES go straight into `origin.address`/
-`destination.address` on the Routes v2 request — Nora's separate Places-API
+`destination.address` on the Routes v2 request — the reference project's separate Places-API
 resolver is out of scope for one demo route, since v2 accepts an address
 directly. Never raises; three states (`ok` / `no_route` / `unavailable`),
-same discipline as `nora.infra.transit`/`nora.infra.routes`.
+same discipline as `reference.infra.transit`/`reference.infra.routes`.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ log = logging.getLogger("ora.routes")
 ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 TIMEOUT_SECONDS = 8.0
 
-# Only what is rendered — every field is billed (Nora's `ROUTES_FIELD_MASK`
+# Only what is rendered — every field is billed (the reference project's `ROUTES_FIELD_MASK`
 # docstring: `X-Goog-FieldMask: *` would request, and bill for, the polyline
 # and every per-step instruction).
 FIELD_MASK = (

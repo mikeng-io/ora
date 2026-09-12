@@ -1,9 +1,9 @@
 """One send path, per-platform senders (design/07 item 10; design/01 §2).
 
-Request builders only — Signal's shape from `nora/platform/signal/send.py`
+Request builders only — Signal's shape from `reference/platform/signal/send.py`
 (JSON-RPC `send`, `groupId`/`message`/`mention`), WhatsApp's from
-`nora/platform/whatsapp/send.py` (`POST /send`, `jid`/`text`) — **extended**
-here with outbound mentions, which Nora's v1 WhatsApp sender explicitly
+`reference/platform/whatsapp/send.py` (`POST /send`, `jid`/`text`) — **extended**
+here with outbound mentions, which the reference project's v1 WhatsApp sender explicitly
 does not carry ("outbound WhatsApp mentions are not in v1 scope"). Ora's
 own design (`02 §4`) puts them back: `@<jid>` in the text plus a `mentions`
 array. The bridge's own wire contract for that is undocumented in this
@@ -11,10 +11,10 @@ repo — this is the reasonable shape, unverified until a real send is
 made; say so rather than assert it.
 
 Mention resolution (`find_mentions`) is a simplified
-`nora/agent/outbound.py::OutboundComposer._scan`: no roster confirmation
+`reference/agent/outbound.py::OutboundComposer._scan`: no roster confirmation
 (Ora's `people.toml` has one person in v1, not a room to reconcile
 against), same longest-match-first, same ASCII/CJK word-boundary rule. An
-unresolvable name is left as plain text — never a guess (Nora #211).
+unresolvable name is left as plain text — never a guess (the reference project's #211).
 
 `speak()` here is the STUB `03 §2` names: it refuses an unlisted room and
 builds the request. Landing the row (`is_ora`, `delivery_status`) and the
@@ -34,7 +34,7 @@ from loop.people import PeopleDirectory
 def _is_word(ch: str) -> bool:
     """ASCII word character — the boundary is only asserted between two of
     these, so CJK handles match with no separator while `@mike` inside
-    `@mikeson` does not (Nora `outbound._is_word`'s rule)."""
+    `@mikeson` does not (the reference project `outbound._is_word`'s rule)."""
     return ch.isascii() and (ch.isalnum() or ch == "_")
 
 

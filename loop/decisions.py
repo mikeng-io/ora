@@ -3,7 +3,7 @@ log's LOGIC (who writes what, when) is event-day; this is insert/select
 over the `decisions` table, with the one property `recent_for` exists to
 hold: **the bound is applied after the writer filter.**
 
-Why that ordering is the whole module (Nora `decision_log.recent_for`'s
+Why that ordering is the whole module (the reference project `decision_log.recent_for`'s
 lesson): a query that takes the last N rows across every writer and only
 then filters to the ones a caller asked for can return **zero** rows for a
 rare writer when a busy one fills the window — a `proactive_decide` tick

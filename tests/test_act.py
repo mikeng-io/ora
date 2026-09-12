@@ -102,7 +102,7 @@ def test_speak_builds_a_request_for_a_listed_room() -> None:
 
 def test_mention_boundary_rejects_a_longer_word() -> None:
     """`@Mike` inside `@Mikeson` must not match — the ASCII word-boundary
-    rule (Nora `outbound._is_word`)."""
+    rule (the reference project `outbound._is_word`)."""
     assert find_mentions("hi @Mikeson", PEOPLE) == []
 
 

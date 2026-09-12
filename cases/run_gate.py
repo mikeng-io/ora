@@ -26,7 +26,7 @@ from loop.model import ModelClient
 CASES_PATH = Path(__file__).resolve().parent / "gate" / "gate.yaml"
 GATE_MD_PATH = Path(__file__).resolve().parent.parent / "prompts" / "gate.md"
 
-# The JSON contract the code owns (Nora's `nora/ingest/relevance_gate.py`'s
+# The JSON contract the code owns (the reference project's `reference/ingest/relevance_gate.py`'s
 # `_CONTEXT`, not part of `gate.md`'s body — gate.md is never edited, ORA-1).
 _JSON_CONTRACT = (
     '\n\nRespond with JSON only:\n{"verdict": "go" | "no_go", "relevance_score": 0.0}'

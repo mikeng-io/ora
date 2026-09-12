@@ -7,7 +7,7 @@ removed once its step actually passes — an accidental pass while the
 marker is still there is itself a failure (`strict=True`), which is what
 keeps this the honest scoreboard design/07 §0 calls it.
 
-Nora's positive control (`tests/integration/
+the reference project's positive control (`tests/integration/
 test_ambient_loop_positive_control.py`, 10/10 green 2026-09-11, no shared
 model session) is the sibling this is modelled on — same six-step shape,
 against a fake client, no live model or bridge. See design/04 §5 for what
@@ -70,7 +70,7 @@ class FakeModelClient:
     """A model client keyed by stage (design/07 item 16) — event-day's
     deciders call `complete_json(stage=..., ...)`; this hands back a
     scripted `FakeModelResponse` per stage without ever reaching a
-    network, the same seam Nora's positive control uses.
+    network, the same seam the reference project's positive control uses.
 
     `responses[stage]` is a queue: each call to that stage pops the next
     scripted response, so a step can script "gate says go, then the turn

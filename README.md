@@ -10,7 +10,7 @@ what is unresolved (notes with closing conditions), and decides — with a
 record of her own decisions — whether and when to speak.
 
 Built for the AI Tinkerers "Agents, Everywhere" hackathon (Cyberport,
-2026-09-12), distilled from [Nora](https://github.com/mikeng-io)'s
+2026-09-12), distilled from [the reference project](https://github.com/mikeng-io)'s
 ambient-loop bundle to the smallest scope that still closes the loop. Full
 design: [`design/`](design/), starting at
 [`design/00-overview.md`](design/00-overview.md).
@@ -20,7 +20,7 @@ design: [`design/`](design/), starting at
 The brief (`docs/ai-thinkathon-2026-09.md` §6) requires a net-new build
 that may use existing "templates, reusable components, libraries, prompts,
 starter code" as building blocks. Ora's line: **the inputs and the stores
-are reused** — prompts (Nora's measured instructions, copied unedited with
+are reused** — prompts (the reference project's measured instructions, copied unedited with
 their hashes), the platform adapters, the Honcho and Exa clients, the
 schema shapes, all marked `prefab` in [`MANIFEST.md`](MANIFEST.md) — **what
 decides is ours, built on the day**: the loop runtime, every
@@ -103,10 +103,10 @@ Tests: `ruff check . && pytest -q`. `tests/test_journey.py`'s six
 
 ## What Ora is not
 
-Not Nora. No media, music, presence, skills, MCP tools, Discord, the
-Dreamer runtime, or Nora's config surface — one workspace, two rooms, one
+Not the reference project. No media, music, presence, skills, MCP tools, Discord, the
+Dreamer runtime, or the reference project's config surface — one workspace, two rooms, one
 loop. Not a prompt-engineering exercise: the relevance-gate instruction is
-Nora's measured v5, copied unedited, and the 12 gate cases ship with a
+the reference project's measured v5, copied unedited, and the 12 gate cases ship with a
 runner (`cases/run_gate.py`) so anyone who wants to edit it can measure it
 first. Not a heartbeat — proactive runs on a tick, but what makes Ora an
 ambient loop is what is serialised *between* wakes, not the trigger.

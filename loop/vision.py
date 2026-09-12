@@ -9,7 +9,7 @@ see design/06 ORA-18).
 Runs INLINE, not spawned: one flash call on one image measured low
 seconds live (design/06 ORA-18) — a queue would solve a problem this
 scope does not have. All three empty is an index entry, not a claim of
-nothing (Nora's rule, kept): a comprehension failure never blocks the
+nothing (the reference project's rule, kept): a comprehension failure never blocks the
 image from being stored or the message from landing.
 
 **Never raises** — the same discipline `loop/search.py`, `loop/route.py`
