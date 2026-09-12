@@ -36,7 +36,6 @@ from loop import (
     decide_gate,
     decide_proactive,
     decide_turn,
-    intent,
     orient,
     present,
     recall,
@@ -87,33 +86,6 @@ def is_tagged(body: str, ora_ids: tuple[str, ...] = ()) -> bool:
     return any(i and i in body for i in ora_ids)
 
 
-URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
-
-# 天氣 / 落雨 / 幾度 are how this room actually asks, far more often than the
-# English words — a weather trigger that only matched English would miss the
-# question nearly every time it is asked here.
-_WEATHER_WORDS = (
-    "weather", "rain", "raining", "forecast", "temperature", "typhoon", "humid",
-    "天氣", "落雨", "落唔落雨", "幾度", "打風", "氣溫", "天氣點",
-)
-_TOMORROW_WORDS = ("tomorrow", "聽日", "明日", "明天")
-
-
-def _first_url(text: str) -> str | None:
-    match = URL_PATTERN.search(text or "")
-    return match.group(0) if match else None
-
-
-def _weather_when(text: str) -> str | None:
-    """`"tomorrow"` / `"now"` / `None`. Returning `None` matters as much as
-    the other two: running a weather lookup on every message would put an
-    unasked-for forecast in front of every judgement."""
-    lowered = (text or "").lower()
-    if not any(word in lowered for word in _WEATHER_WORDS):
-        return None
-    return "tomorrow" if any(word in lowered for word in _TOMORROW_WORDS) else "now"
-
-
 @dataclass
 class RoomState:
     """What the loop remembers between passes for one room. Deliberately
@@ -131,7 +103,8 @@ async def _rows_since(
     store: Store, platform: str, conversation_id: str, after_id: int, limit: int = 50
 ) -> list[Any]:
     return await store.fetch(
-        """SELECT id, sender_id, person_id, is_ora, ts, body, media_sha256
+        """SELECT id, sender_id, person_id, is_ora, ts, body, media_sha256,
+                  COALESCE(is_reply_to_ora, FALSE) AS is_reply_to_ora
              FROM messages
             WHERE platform = $1 AND conversation_id = $2 AND id > $3
             ORDER BY id ASC
@@ -291,11 +264,19 @@ class Loop:
                     state.pending_rows.extend(r["id"] for r in rows)
                     state.pending_since = now
                     await self._remember(room, rows)
+                    # Replying to something Ora said IS addressing Ora — the
+                    # reply path. People answer a message far more naturally
+                    # than they re-type a name, so treating only @-mentions
+                    # as being spoken to misses half of being spoken to.
                     tagged = next(
                         (
                             r
                             for r in rows
-                            if not r["is_ora"] and is_tagged(r["body"] or "", self._ora_ids)
+                            if not r["is_ora"]
+                            and (
+                                is_tagged(r["body"] or "", self._ora_ids)
+                                or r["is_reply_to_ora"]
+                            )
                         ),
                         None,
                     )
@@ -389,44 +370,27 @@ class Loop:
         self._ora_ids = tuple(dict.fromkeys(i for i in ids if i))
         return self._ora_ids
 
-    async def _tools_for(self, transcript: list[TranscriptRow], text: str = "") -> Any:
-        """Run the toolbox over whatever the room is actually asking.
+    def _toolbox(self, room: Room) -> Any:
+        """The same toolbox for every path that can speak.
 
-        On the tag path the question is the tagged message. On the ambient
-        path nobody addressed Ora, so the question has to be read out of the
-        room's own recent lines — that is the whole difference between
-        answering when called and noticing something worth answering.
-
-        Intents are extracted, not chosen by the model: `loop/model.py` is a
-        single-shot JSON client with no tool-calling, so the lookup happens
-        before the turn and its result is rendered in. The model cannot go
-        fishing, and equally cannot invent a lookup that never ran.
+        The model chooses from it; nothing here pre-decides. Built per room
+        because `remember` and `remind` write against a specific
+        conversation — a reminder with no room is a reminder nobody can
+        receive.
         """
-        from loop import tools as tools_mod
+        from loop import toolcall
+        from loop import weather as weather_mod
 
-        recent = "\n".join(r.body for r in transcript[-6:] if not r.is_ora)
-        question = text or recent
-        intents = intent.extract(
-            question,
-            default_origin=self._config.env.ora_default_origin,
-            transcript_text=recent,
-        )
-        url = _first_url(question)
-        weather_when = _weather_when(question)
-        if not (intents.route or intents.search or url or weather_when):
-            return None
-        return await tools_mod.run(
-            route_query=(
-                (intents.route.origin, intents.route.destination) if intents.route else None
-            ),
-            route_mode=intents.route.mode if intents.route else "TRANSIT",
-            route_api_key=self._config.env.google_map_api_key,
+        return toolcall.Toolbox(
             route_fn=route_mod.route,
-            search_query=intents.search,
+            route_api_key=self._config.env.google_map_api_key,
+            default_origin=self._config.env.ora_default_origin,
             search_provider=self._search,
-            fetch_url=url,
-            weather_when=weather_when,
-            weather_fn=self._weather,
+            weather_fn=self._weather or weather_mod.weather,
+            honcho=self._honcho,
+            conversation_id=room.conversation_id,
+            store=self._store,
+            workspace=self._config.workspace,
         )
 
     async def _show(self, text: str, room: Room) -> None:
@@ -527,7 +491,6 @@ class Loop:
         # it can only answer from memory — and demo step 1 is exactly the
         # case where the group asks each other a question, nobody tags Ora,
         # and the useful answer needs the world, not the transcript.
-        tool_run = await self._tools_for(transcript)
         result = await decide_turn.decide(
             model=self._model,
             config=self._config,
@@ -546,7 +509,6 @@ class Loop:
             loop_decision_writers=("participation", "proactive_act", "tag"),
             self_card_conclusions=recalled.self_conclusions,
             peer_cards=recalled.peer_facts,
-            tool_run=tool_run,
         )
         self._sink.event("TURN", room.label, result.verdict, platform=room.platform,
                          error=result.verdict == "failed")
@@ -560,17 +522,6 @@ class Loop:
         standing = await _standing(self._store, room)
         notes = await _open_notes(self._store, self._config.workspace)
 
-        # The tools are chosen HERE, not by the model: `handle_tag` looks up
-        # whatever the caller hands it and credits `grounded_on` from what
-        # actually came back. Without this the tag turn has no tools at all.
-        intents = intent.extract(
-            tagged_text,
-            default_origin=self._config.env.ora_default_origin,
-            transcript_text="\n".join(r.body for r in transcript[-8:]),
-        )
-        route_query = (
-            (intents.route.origin, intents.route.destination) if intents.route else None
-        )
         recalled = await self._recall(transcript)
         peer_person, peer_facts = (
             recalled.peer_facts[0] if recalled.peer_facts else ("", [])
@@ -587,11 +538,7 @@ class Loop:
             transcript=transcript,
             standing=standing,
             notes=_note_entries(notes),
-            route_query=route_query,
-            route_mode=intents.route.mode if intents.route else "TRANSIT",
-            route_api_key=self._config.env.google_map_api_key,
-            search_query=intents.search,
-            search_provider=self._search,
+            toolbox=self._toolbox(room),
             self_card=recalled.self_conclusions,
             peer_card_person=peer_person,
             peer_card_facts=peer_facts,
