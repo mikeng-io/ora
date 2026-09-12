@@ -410,6 +410,65 @@ class Loop:
             self._sink.event("CURATION", room.label, f"note {n.id} raised",
                              platform=room.platform)
 
+        await self._curate(room, now)
+
+    async def _curate(self, room: Room, now: datetime) -> None:
+        """Retire the notes the room has already settled.
+
+        Each note is handed its own evidence — the messages said since it
+        was raised — because a `closed` verdict is only honoured when it
+        cites a row from that note's own evidence. Curating without the
+        evidence would mean every close is refused, which looks exactly
+        like a model that never closes anything.
+        """
+        rows = await _open_notes(self._store, self._config.workspace)
+        if not rows:
+            return
+        for_curation: list[orient.NoteForCuration] = []
+        for r in rows:
+            evidence_rows = await self._store.fetch(
+                """SELECT id, sender_id, is_ora, ts, body
+                     FROM messages
+                    WHERE platform = $1 AND conversation_id = $2 AND ts >= $3
+                    ORDER BY id ASC LIMIT 30""",
+                room.platform,
+                room.conversation_id,
+                r["created_at"],
+            )
+            for_curation.append(
+                orient.NoteForCuration(
+                    id=r["id"],
+                    title=r["title"],
+                    closing_condition=r["closing_condition"],
+                    anchor_at=None,
+                    evidence=[
+                        orient.MessageRow(
+                            id=e["id"],
+                            sender_label=(
+                                "Ora"
+                                if e["is_ora"]
+                                else (
+                                    p.name
+                                    if (p := self._people.resolve(room.platform, e["sender_id"]))
+                                    else (e["sender_id"] or "someone")
+                                )
+                            ),
+                            body=e["body"],
+                            ts=e["ts"],
+                            is_ora=e["is_ora"],
+                        )
+                        for e in evidence_rows
+                    ],
+                )
+            )
+
+        result = await orient.curate(self._model, self._store, notes=for_curation, now=now)
+        for retired in result.retired:
+            self._sink.event(
+                "CURATION", room.label, f"note {retired.id} {retired.reason}",
+                platform=room.platform,
+            )
+
     # ---- the whole workspace -------------------------------------------
 
     async def run_proactive(self) -> None:
