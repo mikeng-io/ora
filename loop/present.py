@@ -26,6 +26,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from aiohttp import web
 
@@ -38,6 +39,30 @@ _QUEUE_MAXSIZE = 16
 # `web/` lives next to `loop/` at the repo root — served as static files so
 # the same aiohttp process that answers /events can also serve index.html.
 _WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
+
+# CORS allowlist for /events (security review finding, fixed here): the
+# stage page is legitimately opened two ways — served same-origin by this
+# process, or double-clicked open as a `file://` tab (which sends
+# `Origin: null`). Neither needs a wildcard. The previous
+# `Access-Control-Allow-Origin: "*"` let *any* website's script — a stray
+# tab on the venue wifi, an ad frame, anything — `fetch()` the live SSE
+# stream and read every line Ora ever decided to speak into the private
+# Signal/WhatsApp groups. Only these origins are reflected back; anything
+# else gets no CORS header at all, so the browser's normal same-origin
+# policy blocks cross-site script reads (the stream still flows to the
+# requesting socket — CORS is a browser-side read guard, not network
+# access control, which is why the host default below matters too).
+_ALLOWED_ORIGIN_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _is_allowed_origin(origin: str) -> bool:
+    if origin == "null":  # file:// tabs
+        return True
+    try:
+        host = urlsplit(origin).hostname
+    except ValueError:
+        return False
+    return host in _ALLOWED_ORIGIN_HOSTS
 
 
 @dataclass(frozen=True)
@@ -62,7 +87,14 @@ class Presenter:
     speak — that is `loop.py`'s decision; this module only makes the
     decision visible once it has already been made."""
 
-    def __init__(self, *, host: str = "0.0.0.0", port: int = 8765) -> None:
+    def __init__(self, *, host: str = "127.0.0.1", port: int = 8765) -> None:
+        # Security review finding, fixed here: binding to 0.0.0.0 put the
+        # unauthenticated /events stream — the live transcript of every
+        # line Ora speaks into the private Signal/WhatsApp groups — on
+        # every interface, reachable by any device on the venue wifi, not
+        # just this laptop. Loopback is the safe default; a caller who
+        # deliberately wants the LAN (e.g. a phone on the same stage) can
+        # still pass host="0.0.0.0" explicitly.
         self._host = host
         self._port = port
         self._subscribers: set[asyncio.Queue[str]] = set()
@@ -101,21 +133,28 @@ class Presenter:
         except Exception:  # noqa: BLE001 — never raises into the caller
             log.exception("presenter speak failed; the real send is unaffected")
 
+    def _build_app(self) -> web.Application:
+        """Construct the aiohttp app. Split out from `start()` so tests can
+        exercise routes (e.g. the CORS headers on /events) via aiohttp's
+        test client without binding a real socket."""
+        app = web.Application()
+        app.router.add_get("/events", self._handle_events)
+        if _WEB_ROOT.is_dir():
+            # aiohttp's static resource has no automatic index.html
+            # serving (unlike a directory listing, which would shadow
+            # it) — so GET / is routed explicitly, and add_static
+            # covers any other file web/index.html references.
+            app.router.add_get("/", self._handle_index)
+            app.router.add_static("/", _WEB_ROOT)
+        return app
+
     async def start(self) -> bool:
         """Bind the aiohttp server and start serving `web/` + `/events`.
         Returns True on success, False on any failure (port already bound,
         no permission, `web/` missing, anything else) — the agent keeps
         running with no visible stage either way."""
         try:
-            app = web.Application()
-            app.router.add_get("/events", self._handle_events)
-            if _WEB_ROOT.is_dir():
-                # aiohttp's static resource has no automatic index.html
-                # serving (unlike a directory listing, which would shadow
-                # it) — so GET / is routed explicitly, and add_static
-                # covers any other file web/index.html references.
-                app.router.add_get("/", self._handle_index)
-                app.router.add_static("/", _WEB_ROOT)
+            app = self._build_app()
             runner = web.AppRunner(app)
             await runner.setup()
             site = web.TCPSite(runner, self._host, self._port)
@@ -145,18 +184,18 @@ class Presenter:
         return web.FileResponse(index_path)
 
     async def _handle_events(self, request: web.Request) -> web.StreamResponse:
-        response = web.StreamResponse(
-            status=200,
-            headers={
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                # the page may be opened as a plain file:// tab (null
-                # origin) rather than served — CORS must not be the reason
-                # the avatar never moves.
-                "Access-Control-Allow-Origin": "*",
-            },
-        )
+        headers = {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+        origin = request.headers.get("Origin")
+        if origin is not None and _is_allowed_origin(origin):
+            # Reflect only an allowed origin, never "*" — see
+            # _is_allowed_origin's docstring-comment above for why.
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Vary"] = "Origin"
+        response = web.StreamResponse(status=200, headers=headers)
         await response.prepare(request)
         queue = self.subscribe()
         try:

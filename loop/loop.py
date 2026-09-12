@@ -216,6 +216,7 @@ class Loop:
         self._honcho = honcho
         self._search = search_provider
         self._fed_through = 0
+        self._warned_no_home = False
 
     def _room_state(self, room: Room) -> RoomState:
         key = (room.platform, room.conversation_id)
@@ -250,9 +251,29 @@ class Loop:
                         (r for r in rows if not r["is_ora"] and is_tagged(r["body"] or "")), None
                     )
                     if tagged is not None:
-                        async with self._guard.hold(room.platform, room.conversation_id) as held:
-                            if held:
-                                await self._run_tag(room, now, tagged["body"] or "")
+                        # A tag always tries to speak — `tag.handle_tag` never
+                        # chooses silence — so without a cooldown here, three
+                        # quick "@ora" messages get three full replies fired
+                        # back to back. That reads as frantic on stage and can
+                        # trip platform rate limits, which then degrade real
+                        # answers into delivery failures.
+                        cooling = await windows.in_cooldown(
+                            self._store, clocks,
+                            platform=room.platform,
+                            conversation_id=room.conversation_id, now=now,
+                        )
+                        if cooling.active:
+                            self._sink.event(
+                                "TAG", room.label,
+                                f"held — cooldown ({int(cooling.remaining_seconds)}s left)",
+                                platform=room.platform,
+                            )
+                        else:
+                            async with self._guard.hold(
+                                room.platform, room.conversation_id
+                            ) as held:
+                                if held:
+                                    await self._run_tag(room, now, tagged["body"] or "")
                         state.pending_since = None
                         state.pending_rows.clear()
                     continue
@@ -576,6 +597,18 @@ class Loop:
                 workspace = self._config.workspace
                 home = decide_proactive.home_room(self._config)
                 if home is None:
+                    # Say so, loudly and once. This exact failure already
+                    # happened: home_room() returned None, the proactive path
+                    # declined forever, and nothing anywhere said why — the
+                    # demo's one unprompted moment would simply never arrive.
+                    # A silent `continue` is what made it invisible.
+                    if not self._warned_no_home:
+                        self._warned_no_home = True
+                        self._sink.event(
+                            "PROACTIVE", "-",
+                            "no home room resolved from rooms.toml — proactive disabled",
+                            error=True,
+                        )
                     continue
 
                 due = await self._store.fetch(

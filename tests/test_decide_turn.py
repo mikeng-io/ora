@@ -18,7 +18,7 @@ import pytest
 from loop import decide_turn
 from loop.config import Clocks, Config, Env, Room
 from loop.people import PeopleDirectory, Person
-from loop.render import TranscriptRow
+from loop.render import NoteEntry, StandingEntry, TranscriptRow
 
 NOW = datetime(2026, 9, 12, 20, 0, 0, tzinfo=UTC)
 
@@ -159,6 +159,20 @@ def _decide_kwargs(**overrides: Any) -> dict[str, Any]:
         transcript=[TranscriptRow(sender_label="Mike", body="hey", ts=NOW)],
         people=PEOPLE,
         session=_FakeSession(),
+        # N1 and a standing paragraph are OFFERED here because the grounding
+        # brake now checks a citation against what the turn was actually
+        # shown, not merely its shape. A test that cites `note:N1` without
+        # ever supplying N1 is asserting a hallucination is acceptable.
+        notes=[
+            NoteEntry(
+                id="N1",
+                title="dinner not decided",
+                closing_condition="a place is agreed",
+                created_at=NOW,
+                room_label="Signal",
+            )
+        ],
+        standing=StandingEntry(body="They are deciding where to eat.", updated_at=NOW),
     )
     base.update(overrides)
     return base
@@ -398,3 +412,56 @@ async def test_speak_missing_or_empty_text_degrades_to_hold(payload: str) -> Non
 
     assert result.verdict == "silent"
     assert result.reason == decide_turn.REASON_EMPTY_TEXT
+
+
+async def test_speak_citing_a_note_that_was_never_offered_is_held() -> None:
+    """The grounding brake checks the citation against reality, not shape.
+
+    A shape-only check passes `note:deadbeef` and `deliver` then sends a
+    message whose provenance trail leads nowhere — the ORA-10 brake with a
+    hole in it, on the path most likely to speak on stage. Reverting the
+    `valid_note_ids` argument reddens this.
+    """
+    body = '{"verdict": "speak", "text": "6pm works", "grounded_on": "note:deadbeef"}'
+    model = _FakeModel(_Completion(content=body))
+    store = _FakeStore()
+    session = _FakeSession()
+
+    result = await decide_turn.decide(
+        model=model, store=store, **_decide_kwargs(session=session)
+    )
+
+    assert result.verdict == "silent"
+    assert session.posts == []
+    assert store.messages == []
+
+
+async def test_speak_grounded_on_standing_is_held_when_there_is_no_standing() -> None:
+    """`standing` is only a citation if a standing paragraph exists."""
+    body = '{"verdict": "speak", "text": "6pm works", "grounded_on": "standing"}'
+    model = _FakeModel(_Completion(content=body))
+    store = _FakeStore()
+    session = _FakeSession()
+
+    result = await decide_turn.decide(
+        model=model, store=store, **_decide_kwargs(session=session, standing=None)
+    )
+
+    assert result.verdict == "silent"
+    assert session.posts == []
+
+
+async def test_speak_claiming_a_tool_is_held_because_this_turn_has_none() -> None:
+    """The ambient turn has no tools; a model claiming one used a tool it
+    never had is exactly the hallucination the brake exists for."""
+    body = '{"verdict": "speak", "text": "the bus is 40 min", "grounded_on": "tool:route"}'
+    model = _FakeModel(_Completion(content=body))
+    store = _FakeStore()
+    session = _FakeSession()
+
+    result = await decide_turn.decide(
+        model=model, store=store, **_decide_kwargs(session=session)
+    )
+
+    assert result.verdict == "silent"
+    assert session.posts == []

@@ -869,3 +869,71 @@ def test_has_been_answered_false_when_only_ora_spoke_after() -> None:
 
 def test_eligible_for_raise_true_for_a_never_struck_note() -> None:
     assert eligible_for_raise(_note(), now=NOW)
+
+
+async def test_a_second_unanswered_raise_strikes_again_and_backs_off_further() -> None:
+    """No permanent nag loop.
+
+    The earlier rule skipped any note with strikes > 0, so `revisit_at` was
+    written once and never moved again: after it passed, the note stayed
+    eligible on EVERY later tick and Ora could re-raise the same thing
+    forever — the exact behaviour this module says it exists to prevent.
+    A second unanswered raise must strike again and push the next revisit
+    further out than the first.
+    """
+    first_revisit = NOW - timedelta(hours=2)  # already passed, so it was raised again
+    note = _note(strikes=1, revisit_at=first_revisit)
+    loop_decisions = [
+        DecisionEntry(
+            writer="proactive_act",
+            verdict="spoke",
+            room_label="Signal",
+            ts=NOW - timedelta(hours=1),  # the SECOND raise, after first_revisit
+            note_id="N1",
+        )
+    ]
+    store = FakeStore()
+
+    updated, struck = await strike_unanswered_notes(
+        store,
+        notes=[note],
+        loop_decisions=loop_decisions,
+        transcript=[],  # still nobody replied
+        now=NOW,
+        revisit_after=timedelta(minutes=30),
+    )
+
+    assert struck == ("N1",), "a second unanswered raise must strike again"
+    assert updated[0].strikes == 2
+    assert updated[0].revisit_at is not None
+    # Backoff grows with strikes: quieter each time, not the same cadence.
+    assert updated[0].revisit_at > NOW + timedelta(minutes=30)
+
+
+async def test_one_raise_is_only_struck_once() -> None:
+    """The counterpart: repeated passes over the SAME unanswered raise must
+    not keep incrementing. Striking per tick rather than per raise would
+    inflate strikes and silence the note almost immediately."""
+    revisit_at = NOW + timedelta(hours=5)
+    note = _note(strikes=1, revisit_at=revisit_at)
+    loop_decisions = [
+        DecisionEntry(
+            writer="proactive_act",
+            verdict="spoke",
+            room_label="Signal",
+            ts=revisit_at - timedelta(hours=6) - timedelta(minutes=1),
+            note_id="N1",
+        )
+    ]
+    store = FakeStore()
+
+    updated, struck = await strike_unanswered_notes(
+        store,
+        notes=[note],
+        loop_decisions=loop_decisions,
+        transcript=[],
+        now=NOW,
+    )
+
+    assert struck == ()
+    assert updated[0].strikes == 1

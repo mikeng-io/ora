@@ -139,20 +139,38 @@ def _parse_payload(content: str) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _grounded_on_is_valid(value: Any) -> bool:
+def _grounded_on_is_valid(
+    value: Any,
+    *,
+    valid_note_ids: frozenset[str] | None = None,
+    standing_present: bool = True,
+) -> bool:
     """`note:<id>` | `standing` | `tool:<name>` (prompts/turn.md's own
     contract) — anything else (missing, wrong type, empty id/name, a
     made-up shape) fails, which is what turns the `speak` into a `hold`
-    before `deliver` is ever reached. That check is the brake; this
-    function is only its measurement."""
+    before `deliver` is ever reached.
+
+    Checked against REALITY, not just shape (audit finding): `note:<id>`
+    must name a note this turn was actually shown, and `standing` requires
+    a standing paragraph to exist. A shape-only check passes
+    `note:deadbeef` — a citation to nothing — and `deliver` then sends a
+    message whose provenance trail cannot be followed back to anything.
+    `tag.py` already validates this way; the participation turn is the path
+    most likely to speak on stage, so the hole mattered more here.
+
+    `tool:` is rejected outright: the ambient turn has no tools. A model
+    claiming one used a tool that does not exist on this path is exactly
+    the hallucination the brake is for.
+    """
     if not isinstance(value, str):
         return False
     if value == "standing":
-        return True
+        return standing_present
     if value.startswith("note:"):
-        return len(value) > len("note:")
-    if value.startswith("tool:"):
-        return len(value) > len("tool:")
+        note_id = value[len("note:") :]
+        if not note_id:
+            return False
+        return valid_note_ids is None or note_id in valid_note_ids
     return False
 
 
@@ -372,7 +390,12 @@ async def _decide(
                 store, workspace=workspace, platform=platform, conversation_id=conversation_id,
                 now=now, reason=REASON_EMPTY_TEXT, call_id=completion.call_id,
             )
-        if not _grounded_on_is_valid(grounded_on):
+        offered_note_ids = frozenset(n.id for n in (notes or []))
+        if not _grounded_on_is_valid(
+            grounded_on,
+            valid_note_ids=offered_note_ids,
+            standing_present=standing is not None and bool(standing.body.strip()),
+        ):
             # THE BRAKE (ORA-10): a speak with nothing behind it never
             # reaches `deliver` — see test_ungrounded_speak_is_hold_and_never_delivers.
             return await _hold(

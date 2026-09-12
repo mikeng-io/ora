@@ -7,8 +7,9 @@ import asyncio
 import json
 
 import pytest
+from aiohttp.test_utils import TestClient, TestServer
 
-from loop.present import _QUEUE_MAXSIZE, Presenter
+from loop.present import _QUEUE_MAXSIZE, Presenter, _is_allowed_origin
 
 
 async def test_subscriber_receives_a_published_line() -> None:
@@ -119,6 +120,81 @@ async def test_second_server_on_the_same_port_degrades_instead_of_raising() -> N
 async def test_stop_before_start_does_not_raise() -> None:
     presenter = Presenter()
     await presenter.stop()  # never started; must be a harmless no-op
+
+
+# --- security review fixes -------------------------------------------------
+# Two findings from the review: a CORS wildcard on /events, and the server
+# defaulting to 0.0.0.0. Both let anyone off-stage read the live transcript
+# of what Ora decides to say into the private Signal/WhatsApp groups. These
+# tests pin the fixes so a regression (e.g. someone restoring "*" to "fix"
+# a CORS error on stage) is caught, not shipped.
+
+
+def test_default_host_is_loopback_not_every_interface() -> None:
+    presenter = Presenter()
+    assert presenter._host == "127.0.0.1"
+
+
+async def test_events_reflects_an_allowed_origin_not_a_wildcard() -> None:
+    presenter = Presenter()
+    app = presenter._build_app()
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/events", headers={"Origin": "http://localhost:5500"})
+        try:
+            assert resp.headers.get("Access-Control-Allow-Origin") == "http://localhost:5500"
+            assert resp.headers.get("Access-Control-Allow-Origin") != "*"
+        finally:
+            resp.close()
+
+
+async def test_events_reflects_file_tabs_null_origin() -> None:
+    presenter = Presenter()
+    app = presenter._build_app()
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/events", headers={"Origin": "null"})
+        try:
+            assert resp.headers.get("Access-Control-Allow-Origin") == "null"
+        finally:
+            resp.close()
+
+
+async def test_events_omits_cors_header_for_an_arbitrary_origin() -> None:
+    presenter = Presenter()
+    app = presenter._build_app()
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/events", headers={"Origin": "https://evil.example"})
+        try:
+            assert "Access-Control-Allow-Origin" not in resp.headers
+        finally:
+            resp.close()
+
+
+async def test_events_omits_cors_header_with_no_origin_at_all() -> None:
+    presenter = Presenter()
+    app = presenter._build_app()
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/events")
+        try:
+            assert "Access-Control-Allow-Origin" not in resp.headers
+        finally:
+            resp.close()
+
+
+@pytest.mark.parametrize(
+    ("origin", "allowed"),
+    [
+        ("null", True),
+        ("http://localhost", True),
+        ("http://localhost:5500", True),
+        ("http://127.0.0.1:8765", True),
+        ("http://[::1]:8765", True),
+        ("https://evil.example", False),
+        ("http://localhost.evil.example", False),
+        ("not a url", False),
+    ],
+)
+def test_is_allowed_origin(origin: str, allowed: bool) -> None:
+    assert _is_allowed_origin(origin) is allowed
 
 
 if __name__ == "__main__":

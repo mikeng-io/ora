@@ -202,9 +202,6 @@ async def strike_unanswered_notes(
     updated: list[OpenNote] = []
     struck: list[str] = []
     for note in notes:
-        if note.strikes > 0:
-            updated.append(note)
-            continue
         spoke_ts = [
             d.ts
             for d in loop_decisions
@@ -217,7 +214,23 @@ async def strike_unanswered_notes(
         if now - last_spoke < revisit_after or has_been_answered(last_spoke, transcript):
             updated.append(note)
             continue
-        revisit_at = now + revisit_after
+        # Strike once per RAISE, not once per note. An earlier version
+        # skipped any note with strikes > 0, so `revisit_at` was set once and
+        # never moved again — after it passed, the note stayed eligible on
+        # every subsequent tick and Ora could re-raise the same thing
+        # forever. That is precisely the nagging this module exists to
+        # prevent. `revisit_at - <the backoff we last applied>` is when we
+        # last struck; a raise newer than that is a new one.
+        already_struck_for_this_raise = (
+            note.revisit_at is not None
+            and last_spoke <= note.revisit_at - revisit_after * max(note.strikes, 1)
+        )
+        if already_struck_for_this_raise:
+            updated.append(note)
+            continue
+        # Back off further each time: a note the room keeps ignoring should
+        # get quieter, not return on the same fixed cadence.
+        revisit_at = now + revisit_after * (note.strikes + 1)
         try:
             await store.execute(
                 "UPDATE note SET strikes = strikes + 1, revisit_at = $2 WHERE id = $1",
