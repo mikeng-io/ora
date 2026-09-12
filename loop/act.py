@@ -1,4 +1,4 @@
-"""One send path, per-platform senders (design/07 item 10; design/01 §2).
+"""One send path, per-platform senders.
 
 Request builders only — Signal's shape from `reference/platform/signal/send.py`
 (JSON-RPC `send`, `groupId`/`message`/`mention`), WhatsApp's from
@@ -74,7 +74,7 @@ def find_mentions(text: str, people: PeopleDirectory) -> list[tuple[int, int, st
 
 @dataclass(frozen=True)
 class Request:
-    """A built, unsent request — dry-run output for design/07 item 10."""
+    """A built, unsent request — dry-run output."""
 
     platform: str
     method: str  # "rpc" (Signal) | "post" (WhatsApp)
@@ -134,9 +134,9 @@ def speak(
     text: str,
     people: PeopleDirectory,
 ) -> SpeakResult:
-    """Refuses an unlisted room before building anything (design/02 §3).
+    """Refuses an unlisted room before building anything.
     Builds the request; does **not** send it — landing the row and the
-    real HTTP call are event-day (design/07 item 10's stub)."""
+    real HTTP call are event-day (the stub)."""
     room = config.room_for(platform, conversation_id)
     if room is None:
         return SpeakResult(ok=False, reason="not in rooms.toml")

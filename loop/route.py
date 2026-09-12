@@ -1,5 +1,5 @@
 """Google Directions (Routes API v2) — a real route for step 2, tag turn
-only, beside Exa (design/07 item 13). Shape from `reference/infra/routes/{client,
+only, beside Exa. Shape from `reference/infra/routes/{client,
 directions,http}.py`, trimmed: place NAMES go straight into `origin.address`/
 `destination.address` on the Routes v2 request — the reference project's separate Places-API
 resolver is out of scope for one demo route, since v2 accepts an address

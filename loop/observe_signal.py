@@ -1,4 +1,4 @@
-"""signal-cli SSE -> `messages` rows (design/07 item 9; images, ORA-18).
+"""signal-cli SSE -> `messages` rows (images, ORA-18).
 
 `SignalListener` is `reference/platform/signal/listener.py`, effectively
 byte-for-byte (long-lived GET, full-jitter exponential backoff, one bad
@@ -297,7 +297,7 @@ class SignalObserver:
         self._sink = sink
         self._people = people or PeopleDirectory([])
         # `None` (the default) means images are stored but never comprehended
-        # — a custody-only mode, still honest (design/19 §2: an
+        # — a custody-only mode, still honest (an
         # uncomprehended row claims nothing, which is exactly true here).
         self._vision_client = vision_client
         self._media_root = media_root

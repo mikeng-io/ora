@@ -1,5 +1,5 @@
-"""Honcho client: feed / peer_card / representation / self-card read
-(design/07 item 12). Shape from `reference/infra/honcho/client.py`, trimmed to
+"""Honcho client: feed / peer_card / representation / self-card read.
+Shape from `reference/infra/honcho/client.py`, trimmed to
 one workspace (no `WorkspaceRouter` — Ora has exactly one) and the four
 verbs Ora uses: `feed` at Observe, `peer_card` + `representation` (the
 self-card read is `representation(peer_id=ai_peer)` with no `target`) on

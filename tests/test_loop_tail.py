@@ -1,4 +1,4 @@
-"""design/07 item 15: against the throwaway Postgres with the rows from
+"""Against the throwaway Postgres with the rows from
 item 3 — `_fetch` + `render_tables` must read them back without error and
 carry the data (ids, ages) a demo operator needs on screen.
 """

@@ -1,16 +1,16 @@
 # RUNBOOK — the day, the seed, the six steps
 
-This is the script the rehearsal and the live demo both run against
-(design/04, design/05 §1). IDs in the query columns are blank until
+This is the script the rehearsal and the live demo both run against.
+IDs in the query columns are blank until
 rehearsal #2 fills them in — the README's demo table is written from
-rehearsal #2's ids, never from intent (design/04 §3).
+rehearsal #2's ids, never from intent.
 
 ## §0. Seeding — before the run starts
 
 Both notes are created *before* the run, visibly, and disclosed on stage
-(the video's first line, design/05 §3): "we seeded one open note before
+(the video's first line): "we seeded one open note before
 the run." This is what makes step 1 an honest `-known` case rather than an
-emergent one (design/04 §1, design/06 "what would show this bundle was
+emergent one ("what would show this bundle was
 wrong").
 
 | note | title | closing condition | anchor | room |
@@ -37,7 +37,7 @@ Confirm both are visible in `loop_tail` before step 1 starts.
   in step 6. Two phones, both apps, both rooms joined.
 
 Rooms: `Signal` (home room) and `WhatsApp`, workspace `demo`. Clocks are
-`design/01 §5`'s compressed values — do not touch them after rehearsal #1
+the spec's compressed values — do not touch them after rehearsal #1
 (ORA-11).
 
 ## The six steps
@@ -134,10 +134,10 @@ SELECT count(*) FROM messages WHERE is_ora = TRUE AND ts > :t_step6;  -- expect 
 On step 3, `loop/calendar.py` creates one Ambiguous event from N1's
 anchor; step 4's text says `「聽日 10 點已經入咗 calendar」`.
 `GET /api/calendar/events` should show one event. Attempted only after
-1–6 are all green (design/06 ORA-12) — the request body is still a
+1–6 are all green (ORA-12) — the request body is still a
 documented TODO (`loop/calendar.py`).
 
-## Error table (design/04 §4)
+## Error table
 
 | what breaks | when we know | what we do |
 |---|---|---|

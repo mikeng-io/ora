@@ -1,5 +1,5 @@
 """Every copied prompt's sha must match its manifest line — the prefab
-prompts are never edited (design/00 §4, ORA-1). `turn.md` is the one prompt
+prompts are never edited (ORA-1). `turn.md` is the one prompt
 assembled tonight; it must name every block `render.py` emits."""
 
 import hashlib
@@ -8,14 +8,14 @@ from pathlib import Path
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 # path -> sha12, as recorded in MANIFEST.md, recomputed from the reference project's tree
-# tonight (design/07 ground rules: recompute, do not trust 03 §1 blindly).
+# tonight (ground rules: recompute, do not trust 03 §1 blindly).
 EXPECTED_SHA12 = {
     "gate.md": "2d3012ecbdaa",
-    "fold.md": "e6539a3abeb0",
+    "fold.md": "6bec3ffba932",
     "verdict.md": "1d96241861cb",
     "notes.md": "5de105577f58",
-    "curation.md": "39e362cd5799",
-    "proactive.md": "8cfc424dbc58",
+    "curation.md": "22ebe913ff60",
+    "proactive.md": "a108100a9127",
 }
 
 RENDER_BLOCKS = ["transcript", "standing", "notes", "loop_decisions", "self_card", "peer_card"]

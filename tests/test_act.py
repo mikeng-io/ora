@@ -1,4 +1,4 @@
-"""design/07 item 10: dry-run only. Build the request for a listed room and
+"""Dry-run only. Build the request for a listed room and
 assert its shape; refuse an unlisted one. No real send tonight — there is
 no HTTP call anywhere in this module or its test."""
 

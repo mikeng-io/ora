@@ -1,4 +1,4 @@
-"""The decision log — schema-side helpers only (design/07 item 11). The
+"""The decision log — schema-side helpers only. The
 log's LOGIC (who writes what, when) is event-day; this is insert/select
 over the `decisions` table, with the one property `recent_for` exists to
 hold: **the bound is applied after the writer filter.**

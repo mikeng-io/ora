@@ -1,4 +1,4 @@
-"""The console log grammar (design/01 §7) — part of the demo, not a debug
+"""The console log grammar — part of the demo, not a debug
 dump. Two sinks from one event: a JSON line to `ora.log`, one readable
 fixed-grammar line to the console. Third-party loggers are held at WARNING
 so nothing else prints.
@@ -81,7 +81,7 @@ class LogSink:
         **fields: object,
     ) -> str | None:
         """Emit one event to both sinks. Returns the console line, or None if
-        this was a DROP already emitted once for this room (dedup, design/01 §7)."""
+        this was a DROP already emitted once for this room (dedup)."""
         ts = ts or datetime.now(UTC)
 
         if stage == "DROP":

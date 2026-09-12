@@ -1,13 +1,13 @@
 """One comprehension pass per image, ORA-18: three fields, one call
-(design/19-media-comprehension.md §2's shape) — `title` (what the thing
+(shape) — `title` (what the thing
 IS), `description` (what it SHOWS), `content` (legible text in it) — all
 from a single `glm-5.3-flash` call on the SAME Ollama Cloud endpoint Ora's
 deciders already use. Never a second endpoint (ORA-5 holds); never called
 for a verdict (ORA-14's "one model everywhere" is narrowed, not broken —
-see design/06 ORA-18).
+see ORA-18).
 
 Runs INLINE, not spawned: one flash call on one image measured low
-seconds live (design/06 ORA-18) — a queue would solve a problem this
+seconds live (ORA-18) — a queue would solve a problem this
 scope does not have. All three empty is an index entry, not a claim of
 nothing (the reference project's rule, kept): a comprehension failure never blocks the
 image from being stored or the message from landing.
@@ -97,7 +97,7 @@ async def comprehend(
     """A single vision call producing all three fields. `ok=False` on any
     non-`stop` finish, an unparseable body, a timeout, or any other
     transport/API failure — an index entry with nothing claimed about it
-    is not a failure (design/19 §2)."""
+    is not a failure."""
     data_uri = _data_uri(data, media_type)
     prompt_sha = hashlib.sha256((_SYSTEM + data_uri).encode()).hexdigest()[:12]
     prompt_chars = len(_SYSTEM) + len(data_uri)

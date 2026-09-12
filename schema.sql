@@ -1,5 +1,5 @@
--- source: design/01-architecture.md §3 (Ora's own DDL, written for this repo)
--- Postgres schema for Ora's loop (design/01 §3, ORA-16). Applied at start by
+-- Ora's own DDL, written for this repo
+-- Postgres schema for Ora's loop (ORA-16). Applied at start by
 -- loop/store.py; idempotent (every statement is CREATE ... IF NOT EXISTS /
 -- CREATE INDEX IF NOT EXISTS), no ORM, no migrations.
 
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS gate_log (   -- observability ONLY: read by loop_tail
 -- byte (sha256). `path` is a local file under ./state/media/, never a bind
 -- into signal-cli's own attachment store. `comprehended=false` is an index
 -- entry that says the bytes exist and claims nothing about them yet
--- (design/19-media-comprehension.md §2's rule, kept).
+-- (kept).
 CREATE TABLE IF NOT EXISTS media_objects (
   sha256 TEXT PRIMARY KEY,
   media_type TEXT NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS media_objects (
   created_at TIMESTAMPTZ NOT NULL
 );
 
--- Added after messages already shipped (design/07 built text-only); a plain
+-- Added after messages already shipped (built text-only, initially); a plain
 -- ALTER keeps schema.sql idempotent without a migration tool (ORA-16).
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_sha256 TEXT REFERENCES media_objects(sha256);
 

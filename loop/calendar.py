@@ -1,5 +1,5 @@
-"""Ambiguous calendar stub (design/07 item 14; design/02 §1). Stretch,
-after 1-6 are green (design/04 §2's stretch row): `POST /api/calendar/
+"""Ambiguous calendar stub. Stretch,
+after 1-6 are green (stretch row): `POST /api/calendar/
 events` on a note close, with an anchor.
 
 The request body is a documented TODO — filling it needs a logged-in
@@ -35,8 +35,8 @@ async def create_event(
             "AMBIGUOUS_API_KEY is not set — the calendar stretch is skipped, not faked"
         )
     # TODO (event-day, after 1-6 are green): the request body, filled from
-    # the logged-in Ambiguous OpenAPI reference (design/03 §2). Nothing
+    # the logged-in Ambiguous OpenAPI reference. Nothing
     # below this line runs tonight.
     raise NotImplementedError(
-        "the Ambiguous request body is a documented TODO — design/03 §2, event-day"
+        "the Ambiguous request body is a documented TODO — event-day"
     )

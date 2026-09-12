@@ -1,8 +1,8 @@
 """Runs the 12 gate cases against `loop/model.py` and prints pass/fail per
-case (design/07 item 8). Tonight this is the baseline, not the gate: the
+case. Tonight this is the baseline, not the gate: the
 event-day gate module is `loop/decide_gate.py` — this script exists so the
 12 cases can be run before that module exists, and again unchanged once it
-does (design/04 §3: 10:30, and again if anything about the model changes).
+does (10:30, and again if anything about the model changes).
 
 `python -m cases.run_gate` from the repo root.
 """
@@ -104,7 +104,7 @@ def parse_verdict(content: str) -> str | None:
 
 async def run_case(client: ModelClient, system: str, case: GateCase) -> list[str]:
     """Returns one verdict per sample; a fail-closed or unparseable call
-    counts as `no_go` (design/06 ORA-9, ORA-14: the gate fails closed)."""
+    counts as `no_go` (ORA-9, ORA-14: the gate fails closed)."""
     verdicts = []
     for _ in range(case.sample):
         result = await client.complete_json(

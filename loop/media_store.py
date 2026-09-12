@@ -1,6 +1,6 @@
 """Plain local storage for image bytes (ORA-18) — no content-addressed
 custody, no encryption, no rustfs. `Note.closing_condition`-grade honesty
-about the size of this: `design/18-media-custody.md` is the right shape
+about the size of this: the spec is the right shape
 for a production deployment with retention and a taxonomy; this is one
 demo night's worth of images, kept as files on disk, keyed by sha256 so a
 second copy of the same bytes never lands twice.

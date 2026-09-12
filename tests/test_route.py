@@ -1,4 +1,4 @@
-"""Pure-function coverage for loop/route.py (design/07 item 13). The live
+"""Pure-function coverage for loop/route.py. The live
 call is verified separately — see the item's commit for why it is marked
 unverified (the GOOGLE_MAP_API_KEY in .env is rejected by Google itself,
 even against the plain Geocoding endpoint — not a code defect)."""

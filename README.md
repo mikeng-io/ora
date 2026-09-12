@@ -11,9 +11,8 @@ record of her own decisions — whether and when to speak.
 
 Built for the AI Tinkerers "Agents, Everywhere" hackathon (Cyberport,
 2026-09-12), distilled from [the reference project](https://github.com/mikeng-io)'s
-ambient-loop bundle to the smallest scope that still closes the loop. Full
-design: [`design/`](design/), starting at
-[`design/00-overview.md`](design/00-overview.md).
+ambient-loop bundle to the smallest scope that still closes the loop. The
+loop, the demo, and the full provenance are below.
 
 ## What judges is event-day; what she reads and sends is reused
 
@@ -52,12 +51,10 @@ brakes.
 ```
 
 Memory is the medium — written at Observe and Act, read at Orient and
-Decide. Five Postgres tables and one Honcho workspace; no stage passes
-state to the next through a model session. See
-[`design/01-architecture.md`](design/01-architecture.md) for the full
-schema, the five seams, and the brakes (fail-closed everywhere; silence is
-the default; a `speak` without `grounded_on` becomes `hold`; deny-by-default
-rooms on both sides).
+Decide. Five Postgres tables (see `schema.sql`) and one Honcho workspace;
+no stage passes state to the next through a model session. The brakes:
+fail-closed everywhere; silence is the default; a `speak` without
+`grounded_on` becomes `hold`; deny-by-default rooms on both sides.
 
 ## The demo (filled in after rehearsal #2)
 
@@ -70,12 +67,12 @@ rooms on both sides).
 | 5 | decide↔decide | A corrects on WhatsApp | she sees her own pending reminder — made on Signal — and drops it |
 | 6 | silence | banter on both apps | nothing — the model judged, not crashed |
 
-*Table to be filled from rehearsal #2's actual ids — never from intent
-(`design/04 §3`). See [`RUNBOOK.md`](RUNBOOK.md) for the exact messages,
+*Table to be filled from rehearsal #2's actual ids — never from intent.
+See [`RUNBOOK.md`](RUNBOOK.md) for the exact messages,
 timings, and queries.*
 
 **Disclosed, not a trick:** two notes are seeded before the run so step 1
-has something to answer with honestly (`design/04 §1`) — "she speaks when
+has something to answer with honestly — "she speaks when
 she holds something; today she held this." The video says so in its first
 line.
 

@@ -7,10 +7,10 @@ description: >-
   The note tier's housekeeping pass. Decides, per note, whether an open question
   has CLOSED or whether its moment has passed with nothing answering it. Reads
   bodies and the conversation since each note was written; writes nothing
-  itself. Version 2 (design/dreamer-agent-loop/34, issue #99) folds in the
+  itself. Version 2 (issue #99) folds in the
   former `note-revisit` objective: an `expired` verdict, a citation requirement
   for `closed`, and the evidence block every note now carries. Version 3
-  (design/dreamer-agent-loop/33 §7, issue #101) adds an optional `discharge`
+  (issue #101) adds an optional `discharge`
   array on a `closed` verdict: what a closing note's SETTLED content is —
   a commitment, a person-claim — never a decision about
   whether to route it, which stays code's job entirely. Version 5 (2026-09-08)

@@ -1,4 +1,4 @@
-"""design/07 item 14: the calendar stub refuses to run without
+"""The calendar stub refuses to run without
 AMBIGUOUS_API_KEY."""
 
 import pytest

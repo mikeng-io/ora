@@ -1,6 +1,6 @@
-# The six-step demo journey (design/04 §2), with a clock. Frozen tonight as
+# The six-step demo journey, with a clock. Frozen tonight as
 # DATA for tests/test_journey.py's six xfail(strict=True) placeholders
-# (design/07 item 16) — event-day fills the six bodies against this fixture,
+# — event-day fills the six bodies against this fixture,
 # it does not rewrite the script.
 # source (shape only, no sha): the reference project's
 # tests/integration/test_ambient_loop_positive_control.py fixture.
@@ -10,7 +10,7 @@ rooms:
   signal: {label: Signal, home_room: true}
   whatsapp: {label: WhatsApp, home_room: false}
 
-# Seeded before the run, disclosed on stage (design/04 §1, 06 "what would
+# Seeded before the run, disclosed on stage (06 "what would
 # show this bundle was wrong"). Both created_at visibly before t0.
 seed:
   notes:

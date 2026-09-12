@@ -1,4 +1,4 @@
-"""Fake-transport coverage for loop/search.py (design/07 item 13). The live
+"""Fake-transport coverage for loop/search.py. The live
 search + fetch are verified separately against api.exa.ai — see the item's
 commit."""
 

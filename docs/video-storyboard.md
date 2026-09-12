@@ -1,6 +1,6 @@
 # Video storyboard — the two-minute demo
 
-From `design/05-day-plan-and-presentation.md` §3. **Do not cut together
+**Do not cut together
 phone recordings.** One Mac screen recording, one take of the six steps,
 voice-over live.
 
@@ -18,7 +18,7 @@ QuickTime (⌘⇧5, full screen, microphone on) or OBS. Two takes; keep the
 better. Editing is QuickTime trim only, plus a 10-second title card at the
 start and the diagram at the end (two PNGs, dropped in).
 
-**The clocks are the edit.** With `design/01 §5`'s compressed values the
+**The clocks are the edit.** With the spec's compressed values the
 six steps take real time on the order of ~180s (re-timed after the Opus
 audit's finding 23 — the original ~90s estimate did not survive contact
 with `settle_seconds` + gate + turn latency); that duration is why the
@@ -38,11 +38,11 @@ clocks are compressed, and why they are not tunable on the day.
 ## PNGs needed before 14:00 (Opus audit finding — assigned, no owner in v1)
 
 - **Title card** — "Ora — one circle, one loop", the tagline underneath.
-- **Diagram** — the loop diagram from `README.md` / `design/01 §1`,
+- **Diagram** — the loop diagram from `README.md`,
   rendered as a clean image for the closing frame.
 
 Owner: teammate B, due by 13:00 rehearsal #2 so both are ready before the
-14:15 record block (`design/05 §1`).
+14:15 record block.
 
 ## Social post
 

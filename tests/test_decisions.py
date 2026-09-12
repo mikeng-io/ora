@@ -1,4 +1,4 @@
-"""design/07 item 11: the bound is applied AFTER the writer filter — a busy
+"""The bound is applied AFTER the writer filter — a busy
 writer cannot starve the reader. Live against a throwaway Postgres (same
 instance as tests/test_store.py):
 docker run --rm -e POSTGRES_PASSWORD=ora -e POSTGRES_USER=ora -e POSTGRES_DB=ora \

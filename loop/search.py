@@ -1,4 +1,4 @@
-"""Exa client: web_search / web_fetch (design/07 item 13). Shape from
+"""Exa client: web_search / web_fetch. Shape from
 `reference/infra/search/exa.py` + `_shared.py`, trimmed to Ora's own scope (Exa
 on the tag turn only, ORA-7). Never raises; three states (R-27, kept):
 `ok`, `nothing_found` (the provider's own honest miss), `unavailable` (the

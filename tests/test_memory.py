@@ -1,4 +1,4 @@
-"""Pure-function coverage for loop/memory.py (design/07 item 12). The
+"""Pure-function coverage for loop/memory.py. The
 network paths (feed/peer_card/representation) are verified live against
 norty's Honcho, workspace `ora-verify` only — see the item's commit."""
 

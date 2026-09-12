@@ -1,9 +1,9 @@
-# The 3 twin pairs (design/07 item 8), from Nora's participation suite.
+# The 3 twin pairs, from Nora's participation suite.
 # source: nora/evals/cases/participation/participation.yaml @ 434282db, case
 # bodies copied unedited (transcript, input, seed). The verdict MUST flip to
 # silence when the grounding (a note or standing) is cut — a model that
 # answers a twin from parametric memory has failed, however correct the
-# answer is in the world. Run at reasoning `low`, n=5 (design/04 §3):
+# answer is in the world. Run at reasoning `low`, n=5:
 # every -unknown twin <= 1/5 speaks; every -known twin >= 3/5.
 
 # --- the stalled question -----------------------------------------------

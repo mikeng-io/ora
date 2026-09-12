@@ -1,5 +1,5 @@
-"""`people.toml` -> (platform, id) -> person, name; reverse map for sends
-(design/01 §2; design/02 §4). The only place a human's two ids meet.
+"""`people.toml` -> (platform, id) -> person, name; reverse map for sends.
+The only place a human's two ids meet.
 
 An unresolvable name goes out as plain text, never a guess (the reference project's #211's
 rule) — `reverse` returning `None` is that contract's other half.

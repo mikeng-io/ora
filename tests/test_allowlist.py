@@ -1,6 +1,6 @@
-"""design/02 §3's test: a message from an unlisted room reaches neither
+"""A message from an unlisted room reaches neither
 `messages` nor Honcho; a `speak()` to an unlisted room is refused without a
-request; both counted. This half covers Observe (design/07 item 9) — the
+request; both counted. This half covers Observe — the
 `act.py` half lands with item 10.
 
 Reverting the allowlist check (or the own-send/syncMessage drop) must turn

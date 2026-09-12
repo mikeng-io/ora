@@ -1,4 +1,4 @@
-"""Live against a throwaway Postgres (design/07 item 3):
+"""Live against a throwaway Postgres:
 docker run --rm -e POSTGRES_PASSWORD=ora -e POSTGRES_USER=ora -e POSTGRES_DB=ora \
     -p 55432:5432 postgres:16
 
@@ -119,7 +119,7 @@ async def test_insert_and_read_back_one_row_per_table(store: Store) -> None:
 
 
 async def test_media_objects_and_messages_join(store: Store) -> None:
-    """design/06 ORA-18: media_objects added after messages already shipped
+    """ORA-18: media_objects added after messages already shipped
     — the ALTER TABLE must not have broken anything, and the join a render
     step needs must actually work."""
     now = datetime.now(UTC)

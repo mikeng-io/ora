@@ -31,7 +31,7 @@ the decision log are new today.
 **Attach:** the 20-second clip of step 5 (`docs/video-storyboard.md`'s
 130–160s window) plus the diagram frame.
 
-**Checklist before posting** (design/05 §4):
+**Checklist before posting**:
 - [ ] Repo is public
 - [ ] Video is uploaded and the link works
 - [ ] All three partners tagged

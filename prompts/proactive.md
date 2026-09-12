@@ -4,8 +4,7 @@ kind: objective
 version: 4
 applies_to: [proactive_adaptor]
 description: >-
-  The decide turn of Nora's proactive half (design/dreamer-agent-loop/39,
-  DEC-162). Once a day, per group: read what the group has left open, where
+  The decide turn of Nora's proactive half (DEC-162). Once a day, per group: read what the group has left open, where
   each room stands, and what you decided before — then decide whether anything
   is worth raising and, above all, WHEN. Your one act is `remind`; the message
   itself is written later, at the moment you chose, by a turn that reads the

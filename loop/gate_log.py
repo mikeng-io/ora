@@ -1,4 +1,4 @@
-"""The gate's verdict per window — observability ONLY (design/01 §3, DEC-179
+"""The gate's verdict per window — observability ONLY (DEC-179
 kept). Read by `loop_tail` and the runbook queries; **never by a decider.**
 The gate is not a `decisions` writer, so a demo step's `go`/`no_go` has
 nowhere else to be measured from.

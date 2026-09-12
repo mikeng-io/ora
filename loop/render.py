@@ -1,4 +1,4 @@
-"""Prompt blocks with their hedge notes (design/01 §2, §4; design/07 item 7).
+"""Prompt blocks with their hedge notes.
 
 Shape and hedge texts carried over from the reference project's own prefill and decision-log
 renderers — `reference/agent/prefill.py`'s `_context_header`/`_transcript_block`/
@@ -11,7 +11,7 @@ wording verbatim because the safety property IS the wording, not the shape
 around it.
 
 Two rules this module exists to hold: a note's TITLE never reaches
-`<loop_decisions>` — only its id (design/01 §6.4) — and every `is_ora` row in
+`<loop_decisions>` — only its id — and every `is_ora` row in
 the transcript renders `(delivered)`, so a decider can tell her own past
 sends from the room's.
 """
@@ -40,7 +40,7 @@ def age(ts: datetime, now: datetime) -> str:
     the reference project's own thresholds collapse everything under 90s to "just now" — fine
     at her hour-scale cadence, but Ora's whole clock lives inside that band
     (`settle_seconds=15`, `cooldown_seconds=60`, `remind_lead_seconds=60`;
-    design/01 §5, ORA-11: none of the reference project's values travel), so a 10s-old row and
+    ORA-11: none of the reference project's values travel), so a 10s-old row and
     a 55s-old one would read identically. Ora's floor is 10s instead."""
     seconds = max(0, int((now - ts).total_seconds()))
     if seconds < 10:
@@ -65,8 +65,7 @@ class TranscriptRow:
 def render_media_marker(shortid: str, title: str, description: str) -> str:
     """`[image abc123: <title> — <description>]`, or the bare `[image
     abc123]` when nothing has been comprehended yet — an index entry
-    claims nothing about the bytes (design/19-media-comprehension.md §2's
-    rule, kept). Never the FULL `content` field (transcripts render
+    claims nothing about the bytes (rule, kept). Never the FULL `content` field (transcripts render
     title+description only, the same budget argument as the reference project's own
     `comprehension_render_chars`; `content` is for a fetch tool, not
     every turn's transcript)."""
@@ -75,7 +74,7 @@ def render_media_marker(shortid: str, title: str, description: str) -> str:
 
 
 def join_media_into_body(body: str, shortid: str, title: str, description: str) -> str:
-    """The render-time join design/19 §3 diagrams: `transcript render: join
+    """The render-time join: `transcript render: join
     media_objects -> [image a3f2c1: <title> - <description>]`. Observe
     writes the BARE placeholder into `messages.body` (the durable record,
     A9); this replaces it with the comprehended join for one render call,
@@ -124,7 +123,7 @@ class StandingEntry:
 
 def render_transcript(rows: list[TranscriptRow], *, now: datetime) -> str:
     """Chat data written by other people, never instructions — and, marked
-    `(delivered)`, her own past sends (design/01 §6.4's Act -> Orient seam)."""
+    `(delivered)`, her own past sends (the Act -> Orient seam)."""
     if not rows:
         return ""
     lines = []
@@ -169,7 +168,7 @@ NOTES_BLOCK_NOTE = (
 
 def render_notes(notes: list[NoteEntry], *, now: datetime) -> str:
     """The INDEX, not the notes: id, title, closing condition, age, room
-    label — the room's label, never the workspace name (design/01 §4)."""
+    label — the room's label, never the workspace name."""
     if not notes:
         return ""
     lines = [
@@ -211,7 +210,7 @@ def render_loop_decisions(
     writers: tuple[str, ...] = (),
     empty: str = "(nothing decided in this window)",
 ) -> str:
-    """A note's TITLE never appears here — only its id (design/01 §6.4). No
+    """A note's TITLE never appears here — only its id. No
     room identifier beyond the label; no model-authored reasoning at all
     (DEC-179, kept). `writers` is what the caller filtered to, named in the
     block's own note rather than left implicit."""

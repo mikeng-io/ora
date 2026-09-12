@@ -1,6 +1,6 @@
-"""`python -m loop_tail`: the console event log (design/01 §7) tailed live,
+"""`python -m loop_tail`: the console event log tailed live,
 with decisions / standing / notes / reminders rendered with ages,
-refreshing (design/01 §2, §7; design/02 §5). The operator's view and the
+refreshing. The operator's view and the
 demo's second screen — nothing else printed.
 """
 

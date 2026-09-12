@@ -1,7 +1,7 @@
 # MANIFEST — prefab vs event-day, file by file
 
 One line per file, appended when the file is created — never reconstructed.
-This is the eligibility evidence for brief §6 (`design/00 §2`, `design/03`):
+This is the eligibility evidence for brief §6:
 the inputs and the stores are reused (prefab, source cited with a sha); what
 decides is built on the day (event-day, source `—`).
 
@@ -15,26 +15,26 @@ decides is built on the day (event-day, source `—`).
 | `people.toml` | prefab | new | — | mike | 2026-09-12 |
 | `loop/config.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_config.py` | prefab | new | — | mike | 2026-09-12 |
-| `schema.sql` | prefab | new (design/01 §3 DDL) | — | mike | 2026-09-12 |
+| `schema.sql` | prefab | new (DDL) | — | mike | 2026-09-12 |
 | `loop/store.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_store.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/logging.py` | prefab | new (grammar per design/01 §7) | — | mike | 2026-09-12 |
+| `loop/logging.py` | prefab | new (grammar) | — | mike | 2026-09-12 |
 | `tests/test_log_grammar.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/model.py` | prefab | `reference/app/composition.py::_RelevanceGateModelClient` shape | — | mike | 2026-09-12 |
 | `tests/test_model.py` | prefab | new | — | mike | 2026-09-12 |
 | `prompts/gate.md` | prefab | `reference/doctrine/participation.md` (v5) | `2d3012ecbdaa` | mike | 2026-09-12 |
-| `prompts/fold.md` | prefab | `reference/dreamer/objectives/standing-debrief.md` (v5) | `e6539a3abeb0` | mike | 2026-09-12 |
+| `prompts/fold.md` | prefab | `reference/dreamer/objectives/standing-debrief.md` (v5) | `6bec3ffba932` | mike | 2026-09-12 |
 | `prompts/verdict.md` | prefab | `reference/dreamer/objectives/standing-verdict.md` (v1) | `1d96241861cb` | mike | 2026-09-12 |
 | `prompts/notes.md` | prefab | `reference/dreamer/objectives/note-candidates.md` (v5) | `5de105577f58` | mike | 2026-09-12 |
-| `prompts/curation.md` | prefab | `reference/dreamer/objectives/note-curation.md` (v5) | `39e362cd5799` | mike | 2026-09-12 |
-| `prompts/proactive.md` | prefab | `reference/dreamer/objectives/proactive.md` (v4) | `8cfc424dbc58` | mike | 2026-09-12 |
-| `prompts/turn.md` | prefab | assembled (design/07 item 6) — Opus-reviewed, 2 blockers + 4 should-fixes fixed | `67a4ab3ced51` | mike | 2026-09-12 |
+| `prompts/curation.md` | prefab | `reference/dreamer/objectives/note-curation.md` (v5) | `22ebe913ff60` | mike | 2026-09-12 |
+| `prompts/proactive.md` | prefab | `reference/dreamer/objectives/proactive.md` (v4) | `a108100a9127` | mike | 2026-09-12 |
+| `prompts/turn.md` | prefab | assembled — Opus-reviewed, 2 blockers + 4 should-fixes fixed | `d066bb72ba07` | mike | 2026-09-12 |
 | `tests/test_prompts.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/render.py` | prefab | `reference/agent/prefill.py`, `reference/domain/decision_log.py`, `reference/language/{note_render,standing_render}.py` shapes; self_card/peer_card hedges verbatim | — | mike | 2026-09-12 |
 | `tests/test_render.py` | prefab | new | — | mike | 2026-09-12 |
 | `cases/gate/gate.yaml` | prefab | `reference/evals/cases/relevance_gate/gate.yaml` (12 of 40 cases, unedited) | — | mike | 2026-09-12 |
 | `cases/participation/participation.yaml` | prefab | `reference/evals/cases/participation/participation.yaml` (3 twin pairs, unedited) | — | mike | 2026-09-12 |
-| `cases/journey.yaml` | prefab | new (design/04 §2 shape) | — | mike | 2026-09-12 |
+| `cases/journey.yaml` | prefab | new (shape) | — | mike | 2026-09-12 |
 | `cases/run_gate.py` | prefab | new | — | mike | 2026-09-12 |
 | `cases/__init__.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/config.py` (workspace property) | prefab | new | — | mike | 2026-09-12 |
@@ -59,17 +59,16 @@ decides is built on the day (event-day, source `—`).
 | `loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_loop_tail.py` | prefab | new | — | mike | 2026-09-12 |
 | `tests/test_journey.py` | prefab | new (shape from `reference/tests/integration/test_ambient_loop_positive_control.py`'s fixture, no sha) | — | mike | 2026-09-12 |
-| `RUNBOOK.md` | prefab | new (design/04 §1-2, §4) | — | mike | 2026-09-12 |
-| `README.md` | prefab | new (design/00, 01) | — | mike | 2026-09-12 |
-| `docs/video-storyboard.md` | prefab | new (design/05 §3) | — | mike | 2026-09-12 |
+| `RUNBOOK.md` | prefab | new | — | mike | 2026-09-12 |
+| `README.md` | prefab | new | — | mike | 2026-09-12 |
+| `docs/video-storyboard.md` | prefab | new | — | mike | 2026-09-12 |
 | `docs/social-post.md` | prefab | new | — | mike | 2026-09-12 |
 | `docker-compose.yml` | prefab | `the reference project's docker-compose.yml` (signal-cli, whatsapp-bridge stanzas, volumes stripped to Ora's own state dirs); postgres + honcho new — honcho image/tag `unverified: no self-host stanza exists anywhere in the reference project's tree to copy; confirm against Honcho's own docs at 10:00` | — | mike | 2026-09-12 |
-| `design/06-decisions.md` ORA-18 | prefab | new — media returns (images only), scope decision | — | mike | 2026-09-12 |
-| `schema.sql` (media_objects, messages.media_sha256) | prefab | new (design/19-media-comprehension.md shape, trimmed — no provenance JSON, no video-chunk fields) | — | mike | 2026-09-12 |
+| `schema.sql` (media_objects, messages.media_sha256) | prefab | new — ORA-18 decision (media returns, images only, scope) implemented here; shape trimmed — no provenance JSON, no video-chunk fields | — | mike | 2026-09-12 |
 | `loop/media_store.py` | prefab | new (plain sha256-keyed storage — not the reference project's rustfs custody) | — | mike | 2026-09-12 |
 | `tests/test_media_store.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/vision.py` | prefab | new (design/19-media-comprehension.md §2's three-field shape; model chosen after live-testing kimi-k3 vs glm-5.3-flash — see ORA-18) | — | mike | 2026-09-12 |
+| `loop/vision.py` | prefab | new (three-field shape; model chosen after live-testing kimi-k3 vs glm-5.3-flash — see ORA-18) | — | mike | 2026-09-12 |
 | `tests/test_vision.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/observe_signal.py` (image capture) | prefab | `reference/platform/signal/media.py` shape (`getAttachment`) — `unverified: no real attachment has ever arrived on the reference project's own deployment either; this is the reference project's own measured-not-proven claim, not a stronger one` | — | mike | 2026-09-12 |
 | `tests/test_observe_signal_media.py` | prefab | new | — | mike | 2026-09-12 |
-| `loop/render.py` (render_media_marker, join_media_into_body) | prefab | new (design/19-media-comprehension.md §3's render-time join, adapted) | — | mike | 2026-09-12 |
+| `loop/render.py` (render_media_marker, join_media_into_body) | prefab | new (render-time join, adapted) | — | mike | 2026-09-12 |

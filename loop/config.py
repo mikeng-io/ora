@@ -1,6 +1,6 @@
-"""Env + rooms.toml + clocks — one place; no constants in modules (design/01 §2).
+"""Env + rooms.toml + clocks — one place; no constants in modules.
 
-Deny-by-default room lookup (design/02 §3): `Config.room_for` returns `None`
+Deny-by-default room lookup: `Config.room_for` returns `None`
 for anything not listed in `rooms.toml`; every stage that observes or sends
 must go through it before touching a store or a wire.
 """
@@ -125,12 +125,12 @@ class Config:
     rooms: dict[tuple[str, str], Room] = field(default_factory=dict)
 
     def room_for(self, platform: str, conversation_id: str) -> Room | None:
-        """Deny-by-default: `None` for anything not in rooms.toml (design/02 §3)."""
+        """Deny-by-default: `None` for anything not in rooms.toml."""
         return self.rooms.get((platform, conversation_id))
 
     @property
     def workspace(self) -> str:
-        """Ora is one workspace of two rooms and one loop (design/00 §4) —
+        """Ora is one workspace of two rooms and one loop —
         `rooms.toml` names exactly one `[workspace.*]` table in v1, and every
         row belongs to it."""
         if not self.workspaces:

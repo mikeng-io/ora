@@ -1,4 +1,4 @@
-"""whatsapp-bridge SSE -> `messages` rows (design/07 item 9).
+"""whatsapp-bridge SSE -> `messages` rows.
 
 `WhatsAppListener` is `reference/platform/whatsapp/listener.py`, effectively
 byte-for-byte (long-lived GET, full-jitter exponential backoff, heartbeat/

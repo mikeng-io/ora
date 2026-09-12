@@ -1,10 +1,10 @@
 ---
 name: turn
-description: The participation turn's situation and output contract — a header, not a judgement (design/07 item 6).
+description: The participation turn's situation and output contract — a header, not a judgement.
 assembled_from:
   - nora/agent/prefill.py::_context_header (the block-list framing; the material-not-scenery line)
   - nora/doctrine/silence.md (the "offered means may-speak" half only — the "called" half belongs to the tag path, not this turn)
-  - design/06-decisions.md ORA-10 (grounded_on), ORA-15 (cancel)
+  - ORA-10 (grounded_on), ORA-15 (cancel) decisions
 change_policy: not-a-judgement — extend the block list and the contract only; never add persuasive text about WHEN to speak, and never restate a base rate the gate has already applied
 ---
 

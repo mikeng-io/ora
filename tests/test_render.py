@@ -193,7 +193,7 @@ def test_render_media_marker_with_both_fields() -> None:
 
 def test_render_media_marker_bare_when_uncomprehended() -> None:
     """All three fields empty is an index entry, not a claim of nothing
-    (design/19 §2, kept) — the bare placeholder, no dash, no join."""
+    (kept) — the bare placeholder, no dash, no join."""
     marker = render_media_marker("abc123", "", "")
     assert marker == "[image abc123]"
 

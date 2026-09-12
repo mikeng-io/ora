@@ -1,18 +1,18 @@
-"""The six-step demo journey (design/04 §2, cases/journey.yaml), against a
-fake model client keyed by stage. Design/07 item 16: tonight this is a
+"""The six-step demo journey (cases/journey.yaml), against a
+fake model client keyed by stage. Tonight this is a
 SKELETON — fixtures only, six `xfail(strict=True)` placeholders. Filling a
 body is event-day work (`loop.py`, the deciders, `orient.py`, `tag.py`
 have to exist first); `xfail(strict=True)` means a marker may only be
 removed once its step actually passes — an accidental pass while the
 marker is still there is itself a failure (`strict=True`), which is what
-keeps this the honest scoreboard design/07 §0 calls it.
+keeps this an honest scoreboard.
 
 the reference project's positive control (`tests/integration/
 test_ambient_loop_positive_control.py`, 10/10 green 2026-09-11, no shared
 model session) is the sibling this is modelled on — same six-step shape,
-against a fake client, no live model or bridge. See design/04 §5 for what
-that control does and does not cover (step 5's shared-log claim is this
-suite's own to prove, not borrowed).
+against a fake client, no live model or bridge. That control's coverage
+does not include step 5's shared-log claim, which is this suite's own to
+prove, not borrowed.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class SeededNote:
 
 
 def seeded_notes() -> list[SeededNote]:
-    """N1, N2 from `cases/journey.yaml`'s seed block (design/04 §1) —
+    """N1, N2 from `cases/journey.yaml`'s seed block —
     created visibly before the run, disclosed on stage."""
     data = load_journey()
     return [
@@ -67,7 +67,7 @@ class FakeModelResponse:
 
 @dataclass
 class FakeModelClient:
-    """A model client keyed by stage (design/07 item 16) — event-day's
+    """A model client keyed by stage — event-day's
     deciders call `complete_json(stage=..., ...)`; this hands back a
     scripted `FakeModelResponse` per stage without ever reaching a
     network, the same seam the reference project's positive control uses.
@@ -95,7 +95,7 @@ class FakeModelClient:
 
 @dataclass
 class JourneyClock:
-    """A clock a test can pin, per design/07 item 16's "with a clock"
+    """A clock a test can pin, per the spec's "with a clock"
     requirement (cases/journey.yaml's own `t` column)."""
 
     t0: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -143,12 +143,12 @@ def test_clock_offsets_match_the_journey_fixture() -> None:
     assert clock.at("2:40") == clock.t0 + timedelta(minutes=2, seconds=40)
 
 
-# --- the six steps (design/04 §2) — event-day fills these in ---------------
+# --- the six steps — event-day fills these in ---------------
 #
 # xfail(strict=True): a marker may only be removed once its step actually
 # passes against the real loop. An accidental pass while the marker is
 # still here is ALSO a failure — that is what keeps this a scoreboard and
-# not decoration (design/07 §0).
+# not decoration.
 
 
 @pytest.mark.xfail(strict=True, reason="event-day: loop.py, decide_gate.py, decide_turn.py")
@@ -170,7 +170,7 @@ def test_step_2_tag_answers_with_route_and_exa() -> None:
 @pytest.mark.xfail(strict=True, reason="event-day: orient.py curation")
 def test_step_3_curation_closes_n1_citing_the_human_row() -> None:
     """N1 retired_reason='closed', cited_row_id is Mike's row (human, not
-    is_ora) — the honest close (design/06 ORA-8)."""
+    is_ora) — the honest close (ORA-8)."""
     raise NotImplementedError
 
 

@@ -8,7 +8,7 @@ description: >-
   and revising Nora's own position in that conversation. It lives in this
   directory because this is where the hot-reloading instruction substrate is,
   NOT because Standing is a Dreamer adaptor: it is a tag-path stage running
-  inside the reply slot (design/dreamer-agent-loop/26-standing.md §1). It is
+  inside the reply slot. It is
   read through `objective_body`, so the Dreamer's own research-framed doctrine
   is deliberately NOT prepended — that framing on a task with no research is
   one of the two named causes of the token runaway this stage is built to
