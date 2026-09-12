@@ -72,3 +72,10 @@ decides is built on the day (event-day, source `—`).
 | `loop/observe_signal.py` (image capture) | prefab | `reference/platform/signal/media.py` shape (`getAttachment`) — `unverified: no real attachment has ever arrived on the reference project's own deployment either; this is the reference project's own measured-not-proven claim, not a stronger one` | — | mike | 2026-09-12 |
 | `tests/test_observe_signal_media.py` | prefab | new | — | mike | 2026-09-12 |
 | `loop/render.py` (render_media_marker, join_media_into_body) | prefab | new (render-time join, adapted) | — | mike | 2026-09-12 |
+| `loop/act.py` (policy half: `deliver`) | event-day | new — real send + `is_ora` row + `delivery_status`; allowlist re-checked at the wire, row written whether the send succeeded or failed | — | mike | 2026-09-12 |
+| `loop/decide_gate.py` | event-day | new — relevance gate; every failure mode fails closed to `no_go` with `error_kind`; writes `gate_log` only, never `decisions` | — | mike | 2026-09-12 |
+| `tests/test_decide_gate.py` | event-day | new — 12 tests, one per failure mode | — | mike | 2026-09-12 |
+| `loop/decide_turn.py` | event-day | new — participation turn; `speak` without `grounded_on` is downgraded to `hold` (brake, proved by test) | — | mike | 2026-09-12 |
+| `tests/test_decide_turn.py` | event-day | new — 18 tests incl. the ungrounded-speak brake | — | mike | 2026-09-12 |
+| `loop/tag.py` | event-day | new — tag path; `grounded_on` validated against tool reality, never trusted from model JSON | — | mike | 2026-09-12 |
+| `tests/test_tag.py` | event-day | new — 14 tests incl. false-grounding rejection | — | mike | 2026-09-12 |

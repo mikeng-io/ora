@@ -193,7 +193,7 @@ async def deliver(
         return Delivery(ok=False, reason=built.reason)
 
     request = built.request
-    base = config.signal_base_url if platform == "signal" else config.whatsapp_base_url
+    base = config.env.signal_base_url if platform == "signal" else config.env.whatsapp_base_url
     if not base:
         return Delivery(ok=False, request=request, reason=f"no base url for {platform}")
 
