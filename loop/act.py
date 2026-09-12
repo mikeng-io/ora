@@ -25,10 +25,12 @@ real HTTP call are event-day (`loop/act.py`'s "policy half", agent A) —
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from loop.config import Config
 from loop.people import PeopleDirectory
+from loop.store import Store
 
 
 def _is_word(ch: str) -> bool:
@@ -127,6 +129,17 @@ class SpeakResult:
     reason: str = ""
 
 
+@dataclass(frozen=True)
+class Delivery:
+    """What actually happened on the wire, and the row that records it."""
+
+    ok: bool
+    request: Request | None = None
+    row_id: int | None = None
+    delivery_status: str | None = None
+    reason: str = ""
+
+
 def speak(
     config: Config,
     platform: str,
@@ -135,8 +148,8 @@ def speak(
     people: PeopleDirectory,
 ) -> SpeakResult:
     """Refuses an unlisted room before building anything.
-    Builds the request; does **not** send it — landing the row and the
-    real HTTP call are event-day (the stub)."""
+    Builds the request; does **not** send it. `deliver` is the half that
+    puts it on the wire."""
     room = config.room_for(platform, conversation_id)
     if room is None:
         return SpeakResult(ok=False, reason="not in rooms.toml")
@@ -147,3 +160,99 @@ def speak(
     else:
         return SpeakResult(ok=False, reason=f"unknown platform {platform!r}")
     return SpeakResult(ok=True, request=request)
+
+
+async def deliver(
+    config: Config,
+    store: Store,
+    platform: str,
+    conversation_id: str,
+    text: str,
+    people: PeopleDirectory,
+    *,
+    session: Any = None,
+    timeout_seconds: float = 15.0,
+) -> Delivery:
+    """`speak` then put it on the wire, then land the row.
+
+    The allowlist is re-checked here rather than trusted from `speak`,
+    because this is the function that actually reaches the network: a
+    caller that skipped `speak` must not be able to reach a room
+    `rooms.toml` does not list.
+
+    The row is written whether the send succeeded or failed, with
+    `delivery_status` saying which. A send that left the process but was
+    not recorded is the one outcome the trace cannot explain later, so
+    recording is not conditional on success.
+
+    Never raises into the loop (R-5): every failure path returns
+    `ok=False` with a reason.
+    """
+    built = speak(config, platform, conversation_id, text, people)
+    if not built.ok or built.request is None:
+        return Delivery(ok=False, reason=built.reason)
+
+    request = built.request
+    base = config.signal_base_url if platform == "signal" else config.whatsapp_base_url
+    if not base:
+        return Delivery(ok=False, request=request, reason=f"no base url for {platform}")
+
+    status = "failed"
+    reason = ""
+    try:
+        status, reason = await _post(
+            base + request.url_path,
+            request.payload,
+            session=session,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception as exc:  # noqa: BLE001 — never raises into the loop (R-5)
+        reason = type(exc).__name__
+
+    row_id = None
+    try:
+        row_id = await store.fetchval(
+            """INSERT INTO messages
+               (platform, conversation_id, workspace, sender_id, person_id,
+                is_ora, delivery_status, ts, body, body_len)
+               VALUES ($1,$2,$3,'','',TRUE,$4,$5,$6,$7)
+               RETURNING id""",
+            platform,
+            conversation_id,
+            config.workspace,
+            status,
+            datetime.now(UTC),
+            text,
+            len(text),
+        )
+    except Exception as exc:  # noqa: BLE001 — a lost row must not lose the send
+        reason = reason or f"row not written: {type(exc).__name__}"
+
+    return Delivery(
+        ok=status == "sent",
+        request=request,
+        row_id=row_id,
+        delivery_status=status,
+        reason=reason,
+    )
+
+
+async def _post(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    session: Any,
+    timeout_seconds: float,
+) -> tuple[str, str]:
+    """POST `payload` as JSON. Returns `(delivery_status, reason)`.
+    `session` is injected so a test can drive this without a network."""
+    if session is None:
+        import aiohttp
+
+        async with aiohttp.ClientSession() as owned:
+            return await _post(url, payload, session=owned, timeout_seconds=timeout_seconds)
+
+    async with session.post(url, json=payload, timeout=timeout_seconds) as response:
+        if response.status >= 400:
+            return "failed", f"HTTP {response.status}"
+        return "sent", ""
