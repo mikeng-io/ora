@@ -142,7 +142,25 @@ services:
       # model as Ora (ORA-14) — no reasoning above `low` runs anywhere.
       - LLM_OPENAI_COMPATIBLE_BASE_URL=https://ollama.com/v1
       - LLM_OPENAI_COMPATIBLE_API_KEY=${OLLAMA_CLOUD_API_KEY}
+      - LLM_OPENAI_API_KEY=${OLLAMA_CLOUD_API_KEY}
       - LLM_DEFAULT_MODEL=deepseek-v4-flash
+      # Embeddings run on the LOCAL ollama (bge-m3), not Ollama Cloud, which
+      # serves no OpenAI-shaped embeddings endpoint — ingest 500s with
+      # «OpenAI API key is required» without this. host.docker.internal is
+      # how the container reaches the ollama on the Mac.
+      #
+      # 1024 dimensions is bge-m3's, not the 1536 Honcho defaults to for
+      # text-embedding-3-small. Honcho asserts the stored vector columns
+      # match this at startup and refuses to boot on a mismatch, so the
+      # honcho database has to be migrated at this dimension, not adapted
+      # to it afterwards.
+      - EMBEDDING_MODEL_CONFIG__transport=openai
+      - EMBEDDING_MODEL_CONFIG__model=bge-m3
+      - EMBEDDING_MODEL_CONFIG__base_url=http://host.docker.internal:11434/v1
+      - EMBEDDING_MODEL_CONFIG__api_key=ollama
+      - EMBEDDING_VECTOR_DIMENSIONS=1024
+      - OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+      - OPENAI_API_KEY=ollama
 
 networks:
   default:

@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from loop.present import Presenter, _QUEUE_MAXSIZE
+from loop.present import _QUEUE_MAXSIZE, Presenter
 
 
 async def test_subscriber_receives_a_published_line() -> None:

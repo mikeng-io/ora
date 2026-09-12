@@ -110,7 +110,12 @@ class Presenter:
             app = web.Application()
             app.router.add_get("/events", self._handle_events)
             if _WEB_ROOT.is_dir():
-                app.router.add_static("/", _WEB_ROOT, show_index=True)
+                # aiohttp's static resource has no automatic index.html
+                # serving (unlike a directory listing, which would shadow
+                # it) — so GET / is routed explicitly, and add_static
+                # covers any other file web/index.html references.
+                app.router.add_get("/", self._handle_index)
+                app.router.add_static("/", _WEB_ROOT)
             runner = web.AppRunner(app)
             await runner.setup()
             site = web.TCPSite(runner, self._host, self._port)
@@ -132,6 +137,12 @@ class Presenter:
             log.exception("presenter failed to stop cleanly")
         finally:
             self._runner = None
+
+    async def _handle_index(self, request: web.Request) -> web.StreamResponse:
+        index_path = _WEB_ROOT / "index.html"
+        if not index_path.is_file():
+            raise web.HTTPNotFound()
+        return web.FileResponse(index_path)
 
     async def _handle_events(self, request: web.Request) -> web.StreamResponse:
         response = web.StreamResponse(

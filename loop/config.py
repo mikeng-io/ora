@@ -14,7 +14,20 @@ from pathlib import Path
 
 
 def _load_dotenv(path: Path) -> None:
-    """Populate os.environ from a .env file, without overriding what is already set."""
+    """Populate os.environ from Ora's own .env.
+
+    Ora's `.env` WINS over an inherited shell variable. That is the opposite
+    of the usual convention and it is deliberate: this machine exports
+    `HONCHO_WORKSPACE` pointing at a different, production workspace, and
+    the usual "don't override the environment" rule silently aimed Ora's
+    memory writes at it. Measured, not theorised — the first live write went
+    to the wrong workspace and came back 500.
+
+    A shared name that means two different things on one machine is a
+    hazard, so the file next to the code decides what this process does.
+    Anything genuinely per-machine (a key, a host) simply is not listed in
+    `.env` and still falls through to the environment.
+    """
     if not path.is_file():
         return
     for line in path.read_text().splitlines():
@@ -24,7 +37,7 @@ def _load_dotenv(path: Path) -> None:
         key, _, value = line.partition("=")
         key = key.strip()
         value = value.split(" #", 1)[0].strip()
-        if key and key not in os.environ:
+        if key:
             os.environ[key] = value
 
 

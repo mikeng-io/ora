@@ -672,6 +672,12 @@ async def main() -> None:
             base_url=config.env.honcho_base_url,
             workspace_id=config.env.honcho_workspace,
             ai_peer=config.env.honcho_ai_peer or "ora",
+            # 2s (the default) is under the cold-start cost of the first
+            # write, which reported a failure for a row that had in fact
+            # landed. A false failure on a memory write is worse than a slow
+            # one: it is the kind of thing that gets "fixed" by retrying and
+            # quietly doubles the row.
+            feed_timeout=6.0,
         )
         await honcho.ensure_workspace()
 
