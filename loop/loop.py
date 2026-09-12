@@ -390,7 +390,7 @@ class Loop:
             prior=prior,
             now=now,
         )
-        if fold.ok:
+        if fold.changed:
             self._sink.event("FOLD", room.label, f"standing rewritten ({fold.body_len} chars)",
                              platform=room.platform)
 
@@ -487,8 +487,12 @@ class Loop:
                     transcript=transcript,
                     now=now,
                 )
-                self._sink.event("PROACTIVE", home.label, outcome.verdict,
-                                 platform=home.platform)
+                raised = len(outcome.reminders_created)
+                what = f"{raised} reminder(s) raised" if raised else "decline"
+                if outcome.struck_notes:
+                    what += f", {len(outcome.struck_notes)} struck"
+                self._sink.event("PROACTIVE", home.label, what,
+                                 platform=home.platform, error=not outcome.ok)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001 — the tick must not kill the loop

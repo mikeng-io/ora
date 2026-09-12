@@ -545,8 +545,22 @@ def home_room(config: Config) -> Room | None:
     workspace = config.workspaces.get(config.workspace)
     if workspace is None or not workspace.home_room:
         return None
+    raw = workspace.home_room
+
+    # `rooms.toml` writes this as `platform:conversation_id`, e.g.
+    # `signal:bMo1TAT…=`. Matching it against `room.label` ("Signal")
+    # silently resolved to None on the real config, which fails closed —
+    # so the proactive path simply never fired and said nothing about it.
+    # A Signal group id is base64 (`+`, `/`, `=`) and never contains a
+    # colon, so one split is unambiguous.
+    if ":" in raw:
+        platform, _, conversation_id = raw.partition(":")
+        room = config.room_for(platform.strip(), conversation_id.strip())
+        if room is not None:
+            return room
+
     for room in config.rooms.values():
-        if room.label == workspace.home_room:
+        if room.label == raw:
             return room
     return None
 
