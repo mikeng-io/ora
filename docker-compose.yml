@@ -94,7 +94,12 @@ services:
   # postgres — ORA-16: Honcho needs Postgres anyway, so it is here
   # regardless; Ora takes its own database `ora` on the same instance.
   postgres:
-    image: postgres:16
+    # pgvector/pgvector:pg16, not plain postgres:16 — Honcho refuses to start
+    # without the `vector` extension («Required vector columns missing:
+    # public.documents.embedding … Run `alembic upgrade head` first»), and
+    # stock postgres does not ship it. Same PG16 major, so the existing
+    # ./state/postgres data directory is used unchanged.
+    image: pgvector/pgvector:pg16
     container_name: ora-postgres
     restart: unless-stopped
     ports:
