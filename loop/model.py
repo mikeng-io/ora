@@ -14,12 +14,32 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from loop.store import Store
+
+
+@dataclass
+class ToolCompletion:
+    """One round of a tool-calling conversation.
+
+    `ok` means the model ANSWERED (`finish_reason == "stop"`). A round that
+    returned tool calls is a successful round but not an answer, which is
+    why the two are separate fields rather than one flag: the loop needs to
+    know "did this work" and "are we done" independently.
+    """
+
+    content: str
+    finish_reason: str
+    ok: bool
+    call_id: int | None = None
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    assistant_message: dict[str, Any] = field(default_factory=dict)
+    error_kind: str | None = None
 
 
 @dataclass
@@ -162,6 +182,124 @@ class ModelClient:
             latency_ms=latency_ms,
             call_id=call_id,
             error_kind=None if ok else (finish_reason or "error"),
+        )
+
+    async def complete_with_tools(
+        self,
+        *,
+        stage: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        reasoning_effort: str,
+        platform: str | None = None,
+        conversation_id: str | None = None,
+        max_tokens: int = 4000,
+        temperature: float = 0.0,
+        timeout_seconds: float | None = None,
+    ) -> ToolCompletion:
+        """One round of a tool-calling conversation.
+
+        The sibling of `complete_json`, for the agentic path: the model is
+        handed tool schemas and may answer with text OR with tool calls.
+        Verified against Ollama Cloud's `deepseek-v4-flash`, which returns
+        `finish_reason="tool_calls"` and a populated `tool_calls` array.
+
+        No `response_format=json_object` here: asking for a JSON object and
+        offering tools at the same time fights itself — a tool call is not
+        the JSON object the format is demanding.
+
+        Writes its own `model_calls` row like every other call (ORA-17), so
+        a turn that took four rounds leaves four rows and the trace shows
+        what it cost rather than only what it concluded.
+        """
+        blob = json.dumps(messages, ensure_ascii=False, default=str)
+        prompt_sha = hashlib.sha256(blob.encode()).hexdigest()[:12]
+        started_at = datetime.now(UTC)
+        start = time.monotonic()
+
+        try:
+            response = await asyncio.wait_for(
+                self._client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    reasoning_effort=reasoning_effort,
+                ),
+                timeout=timeout_seconds if timeout_seconds is not None else self._timeout_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001 — never raises into the loop (R-5)
+            kind = "timeout" if isinstance(exc, TimeoutError) else type(exc).__name__
+            latency_ms = int((time.monotonic() - start) * 1000)
+            call_id = await self._record(
+                stage=stage, platform=platform, conversation_id=conversation_id,
+                reasoning=reasoning_effort, prompt_sha=prompt_sha, prompt_chars=len(blob),
+                prompt_tokens=None, completion_tokens=None, reasoning_tokens=None,
+                latency_ms=latency_ms, finish_reason=kind, ok=False, output_chars=None,
+                started_at=started_at,
+            )
+            return ToolCompletion(
+                content="", finish_reason=kind, ok=False, call_id=call_id, error_kind=kind
+            )
+
+        latency_ms = int((time.monotonic() - start) * 1000)
+        choice = response.choices[0]
+        finish_reason = choice.finish_reason or ""
+        message = choice.message
+        content = (message.content or "").strip()
+
+        calls: list[dict[str, Any]] = []
+        for call in getattr(message, "tool_calls", None) or []:
+            function = getattr(call, "function", None)
+            calls.append(
+                {
+                    "id": getattr(call, "id", "") or "",
+                    "name": getattr(function, "name", "") or "",
+                    "arguments": getattr(function, "arguments", "") or "{}",
+                }
+            )
+
+        usage = getattr(response, "usage", None)
+        call_id = await self._record(
+            stage=stage, platform=platform, conversation_id=conversation_id,
+            reasoning=reasoning_effort, prompt_sha=prompt_sha, prompt_chars=len(blob),
+            prompt_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
+            completion_tokens=getattr(usage, "completion_tokens", None) if usage else None,
+            reasoning_tokens=None, latency_ms=latency_ms, finish_reason=finish_reason,
+            # A tool call IS a successful round — the model did what it was
+            # asked. Treating only "stop" as ok would mark every tool-using
+            # turn a failure in the trace.
+            ok=finish_reason in ("stop", "tool_calls"),
+            output_chars=len(content), started_at=started_at,
+        )
+
+        return ToolCompletion(
+            content=content,
+            finish_reason=finish_reason,
+            ok=finish_reason == "stop",
+            call_id=call_id,
+            tool_calls=calls,
+            assistant_message={
+                "role": "assistant",
+                "content": message.content,
+                "tool_calls": [
+                    {
+                        "id": c["id"],
+                        "type": "function",
+                        "function": {"name": c["name"], "arguments": c["arguments"]},
+                    }
+                    for c in calls
+                ],
+            }
+            if calls
+            else {"role": "assistant", "content": message.content},
+            error_kind=(
+                None
+                if finish_reason in ("stop", "tool_calls")
+                else (finish_reason or "error")
+            ),
         )
 
     async def _record(
