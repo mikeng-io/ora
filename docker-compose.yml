@@ -1,16 +1,16 @@
-# Mike's stack (design/01 §2, design/02 §1): signal-cli, whatsapp-bridge,
-# postgres:16, honcho. design/07 item 18: written only because no compose
+# Mike's stack: signal-cli, whatsapp-bridge,
+# postgres:16, honcho. Written only because no compose
 # file existed in this repo yet; the two bridge stanzas are copied from
 # the reference project's own docker-compose.yml with the reference project's volumes stripped to
-# Ora's own state directories — Ora links as a SEPARATE device (design/02
-# §2) and must never share norty's ./state/signal-cli or ./state/whatsapp.
+# Ora's own state directories — Ora links as a SEPARATE device
+# and must never share norty's ./state/signal-cli or ./state/whatsapp.
 #
 # EVERY published port below is bound to 127.0.0.1 ONLY, deliberately.
 # signal-cli's JSON-RPC (send-as-Mike), whatsapp-bridge's send endpoint,
 # Postgres, and Honcho's API all carry no authentication of their own —
 # the reference project's own compose keeps the equivalent two bridges on a private,
 # unpublished network for exactly this reason. Ora runs as a plain
-# process on the same host (design/02 §1), not inside this compose
+# process on the same host, not inside this compose
 # project, so it needs *some* published port — but 0.0.0.0 would offer
 # every one of those unauthenticated APIs to the whole Tailscale/LAN
 # surface, which is a real hole a security review caught in this file.
@@ -18,18 +18,24 @@
 # localhost:18080`, etc.), so binding to loopback costs nothing Ora needs.
 #
 # `docker compose config` validates this file; it is NOT brought up
-# tonight (design/07 item 18's verify step) — the first real bring-up is
-# the 10:00-10:30 smoke (design/05 §1).
+# tonight (item 18's verify step) — the first real bring-up is
+# the 10:00-10:30 smoke.
 
 services:
   # signal-cli — copied from the reference project's docker-compose.yml, same image tag
-  # (design/02 §1: "same image as norty"). Ora's container starts with NO
+  # ("same image as norty"). Ora's container starts with NO
   # prior state: it is linked as a second device of the SAME account from
-  # the phone (design/02 §2), not registered fresh — `signal-cli link -n
+  # the phone, not registered fresh — `signal-cli link -n
   # ora` (run once, interactively, via `docker compose run --rm signal-cli
   # signal-cli link -n ora`) before this daemon command ever runs.
   signal-cli:
-    image: signal-cli:0.14.7
+    image: signal-cli:0.14.7-amd64
+    # amd64 under emulation, deliberately: signal-cli's libsignal-client is a
+    # native JNI library and the upstream release tarball's `signal_jni` is
+    # x86_64. An arm64 build of this image starts and then fails every RPC
+    # with «Missing required native library dependency: libsignal-client».
+    # Startup cost is irrelevant for a daemon that runs for the whole demo.
+    platform: linux/amd64
     container_name: ora-signal-cli
     restart: unless-stopped
     ports:
@@ -60,7 +66,7 @@ services:
       options: { max-size: "10m", max-file: "3" }
 
   # whatsapp-bridge — copied from the reference project's docker-compose.yml, same image tag.
-  # FIRST RUN needs pairing (design/02 §2): a dedicated bot number, paired
+  # FIRST RUN needs pairing: a dedicated bot number, paired
   # by CODE into that phone's WhatsApp — Linked Devices → Link with phone
   # number:
   #   docker compose run --rm whatsapp-bridge --pair --phone <digits>
@@ -105,10 +111,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # honcho — design/02 §1: a FRESH instance, empty workspace `ora`. the reference project
+  # honcho — a FRESH instance, empty workspace `ora`. the reference project
   # runs Honcho host-side on norty; there is no compose stanza anywhere in
-  # this tree to copy (Opus audit finding 10; design/reviews/response.md:
-  # "Mike brings the stanza; item 18 writes it only if he has not"). The
+  # this tree to copy (Opus audit finding 10: "Mike brings the stanza;
+  # item 18 writes it only if he has not"). The
   # exact self-host image/tag below is UNVERIFIED against Honcho's own
   # self-hosting docs — confirm at 10:00, before relying on it; the
   # `ora-verify` workspace round-trip tonight (item 12) ran against
@@ -123,7 +129,10 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      - DB_CONNECTION_URI=postgresql://ora:ora@postgres:5432/honcho
+      # `+psycopg` (psycopg3) is load-bearing: a bare `postgresql://` makes
+      # SQLAlchemy reach for psycopg2, which this image does not ship —
+      # the container crash-loops on ModuleNotFoundError at import.
+      - DB_CONNECTION_URI=postgresql+psycopg://ora:ora@postgres:5432/honcho
       # Honcho's own LLM, pointed at the same Ollama Cloud endpoint and
       # model as Ora (ORA-14) — no reasoning above `low` runs anywhere.
       - LLM_OPENAI_COMPATIBLE_BASE_URL=https://ollama.com/v1
