@@ -2,11 +2,8 @@
 
 Ora is a one-day build: a net-new ambient-loop agent for the AI Tinkerers
 hackathon (2026-09-12), distilled from a private reference project's
-building blocks. **The spec lived in `design/`, a local, gitignored
-directory of planning notes — not part of this public repo.** If it is
-present on disk, read it in full before touching anything. If it is
-absent (a fresh clone), `MANIFEST.md` / `RUNBOOK.md` / `README.md` is the
-whole spec.
+building blocks. `MANIFEST.md` / `RUNBOOK.md` / `README.md` is the whole
+spec for this repo — read them in full before touching anything.
 
 ## How to think (this is not optional)
 
