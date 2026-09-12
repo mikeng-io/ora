@@ -156,11 +156,83 @@ services:
       # to it afterwards.
       - EMBEDDING_MODEL_CONFIG__transport=openai
       - EMBEDDING_MODEL_CONFIG__model=bge-m3
-      - EMBEDDING_MODEL_CONFIG__base_url=http://host.docker.internal:11434/v1
-      - EMBEDDING_MODEL_CONFIG__api_key=ollama
+      - EMBEDDING_MODEL_CONFIG__overrides__base_url=http://host.docker.internal:11434/v1
+      - EMBEDDING_MODEL_CONFIG__overrides__api_key=ollama
       - EMBEDDING_VECTOR_DIMENSIONS=1024
       - OPENAI_BASE_URL=http://host.docker.internal:11434/v1
       - OPENAI_API_KEY=ollama
+
+  # honcho-deriver — the half that actually thinks.
+  #
+  # The API only ENQUEUES work; a separate process consumes it. Without this
+  # service the queue just grows (measured: 5 rows waiting, nothing touching
+  # them) and no conclusion or peer card is ever produced — so Ora's
+  # <self_card> and <peer_card> blocks stay permanently empty and "memory is
+  # the medium" is false in practice while looking fine in the API.
+  honcho-deriver:
+    image: ghcr.io/plastic-labs/honcho:latest
+    container_name: ora-honcho-deriver
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/app/.venv/bin/python", "-m", "src.deriver"]
+    environment:
+      - DB_CONNECTION_URI=postgresql+psycopg://ora:ora@postgres:5432/honcho
+      # DERIVER_MODEL_CONFIG defaults to gpt-5.4-mini over OpenAI's own
+      # transport, which this deployment has no key for — the deriver would
+      # start and then fail every unit of work. Pointed at the same Ollama
+      # Cloud model as everything else (ORA-14).
+      - DERIVER_MODEL_CONFIG__transport=openai
+      - DERIVER_MODEL_CONFIG__model=deepseek-v4-flash
+      - DERIVER_MODEL_CONFIG__overrides__base_url=https://ollama.com/v1
+      - DERIVER_MODEL_CONFIG__overrides__api_key=${OLLAMA_CLOUD_API_KEY}
+      # json_object, not the json_schema default: Ollama Cloud is
+      # OpenAI-compatible but does not honour Structured Outputs, so the
+      # model returned perfectly good markdown bullets and pydantic rejected
+      # every one of them («Invalid JSON: invalid number at line 1 column
+      # 2»). json_object injects the schema into the prompt instead.
+      - DERIVER_MODEL_CONFIG__structured_output_mode=json_object
+      - LLM_OPENAI_COMPATIBLE_BASE_URL=https://ollama.com/v1
+      - LLM_OPENAI_COMPATIBLE_API_KEY=${OLLAMA_CLOUD_API_KEY}
+      - LLM_OPENAI_API_KEY=${OLLAMA_CLOUD_API_KEY}
+      - LLM_DEFAULT_MODEL=deepseek-v4-flash
+      # Same 1024-dim bge-m3 on the local ollama as the API: the deriver
+      # embeds what it writes, and a dimension mismatch between the two
+      # processes would corrupt the shared columns.
+      - EMBEDDING_MODEL_CONFIG__transport=openai
+      - EMBEDDING_MODEL_CONFIG__model=bge-m3
+      - EMBEDDING_MODEL_CONFIG__overrides__base_url=http://host.docker.internal:11434/v1
+      - EMBEDDING_MODEL_CONFIG__overrides__api_key=ollama
+      - EMBEDDING_VECTOR_DIMENSIONS=1024
+      # Deliberately NO OPENAI_BASE_URL here, unlike the API service: the
+      # deriver's LLM transport falls back to it, so pointing it at the local
+      # ollama sent every derivation to a server that has no
+      # deepseek-v4-flash — «model not found», three retries, work unit
+      # failed. Embeddings already have their own explicit endpoint above.
+      - OPENAI_API_KEY=ollama
+      - OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+      # A demo accumulates hours of data, not weeks: poll hard, back off
+      # little, and treat a session as stale in one minute rather than five
+      # so a card appears while the room is still talking about it.
+      - DERIVER_WORKERS=2
+      - DERIVER_POLLING_SLEEP_INTERVAL_SECONDS=1.0
+      - DERIVER_POLLING_SLEEP_MAX_INTERVAL_SECONDS=5.0
+      - DERIVER_POLLING_STARTUP_JITTER_SECONDS=0
+      - DERIVER_STALE_SESSION_TIMEOUT_MINUTES=1
+      # This is the knob that looked like "the deriver takes hours".
+      # By default a representation work unit is only claimable once it has
+      # accumulated REPRESENTATION_BATCH_WORK_UNIT_TARGET_TOKENS of messages
+      # OR waited REPRESENTATION_BATCH_MAX_AGE_SECONDS (1800s). A handful of
+      # short chat lines hits neither, so the queue sat at 3 rows, unclaimed,
+      # with the deriver polling happily and logging nothing wrong.
+      # Batching is the right default for a service ingesting for weeks; it
+      # is the wrong one for a room being demoed this afternoon.
+      - DERIVER_FLUSH_ENABLED=true
+      - DERIVER_REPRESENTATION_BATCH_MAX_AGE_SECONDS=10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
 networks:
   default:

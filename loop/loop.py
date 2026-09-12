@@ -643,6 +643,27 @@ class Loop:
                 self._sink.event("PROACTIVE", "-", f"tick failed: {type(exc).__name__}", error=True)
 
 
+async def _forever(sink: LogSink, what: str, run: Any, *, backoff: float = 3.0) -> None:
+    """Run a listener forever, restarting it when it dies.
+
+    Neither observer has an internal guard: `run()` opens an SSE stream and
+    lets anything the transport raises escape. A signal-cli reconnect or one
+    malformed payload would otherwise end that task for the rest of the
+    session, and the room it feeds goes quiet with nothing in the log
+    explaining why — the worst failure shape there is.
+    """
+    while True:
+        try:
+            await run()
+            sink.event("OBSERVE", "-", f"{what} stream ended; reconnecting")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — a listener must always come back
+            sink.event("OBSERVE", "-", f"{what} died ({type(exc).__name__}); reconnecting",
+                       error=True)
+        await asyncio.sleep(backoff)
+
+
 async def main() -> None:
     config = load_config()
     store = await Store.connect(config.env.database_url)
@@ -693,13 +714,22 @@ async def main() -> None:
     sink.event("OBSERVE", "-", f"up: {len(rooms)} room(s), workspace {config.workspace}")
 
     tasks = [
-        asyncio.create_task(SignalObserver(config, store, sink, people, client).run()),
-        asyncio.create_task(WhatsAppObserver(config, store, sink, people).run()),
+        asyncio.create_task(
+            _forever(sink, "signal-cli", SignalObserver(config, store, sink, people, client).run)
+        ),
+        asyncio.create_task(
+            _forever(sink, "whatsapp-bridge", WhatsAppObserver(config, store, sink, people).run)
+        ),
         asyncio.create_task(loop.run_proactive()),
         *[asyncio.create_task(loop.run_room(r)) for r in rooms],
     ]
     try:
-        await asyncio.gather(*tasks)
+        # return_exceptions=True, deliberately: the default lets ONE task's
+        # exception propagate out of gather, and the `finally` below then
+        # cancels every other task. The room loops' own "must not kill the
+        # loop" guards are worthless under that — a single transient
+        # reconnect in one observer would take the whole agent dark.
+        await asyncio.gather(*tasks, return_exceptions=True)
     finally:
         for t in tasks:
             t.cancel()

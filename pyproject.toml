@@ -9,6 +9,7 @@ dependencies = [
     "openai>=1.50",
     "pyyaml>=6.0",
     "rich>=13.9",
+    "langfuse>=4.15.2",
 ]
 
 [dependency-groups]
