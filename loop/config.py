@@ -90,6 +90,9 @@ class Env:
     reasoning_gate: str = "none"
     reasoning_turn: str = "low"
     google_map_api_key: str = ""
+    exa_api_key: str = ""
+    # Where "how do we get there" starts from when nobody says an origin.
+    ora_default_origin: str = "Tin Shui Wai, Hong Kong"
     database_url: str = ""
     ora_log: str = "./ora.log"
     ora_tz: str = "Asia/Hong_Kong"
@@ -108,6 +111,8 @@ class Env:
             reasoning_gate=os.environ.get("REASONING_GATE", "none"),
             reasoning_turn=os.environ.get("REASONING_TURN", "low"),
             google_map_api_key=os.environ.get("GOOGLE_MAP_API_KEY", ""),
+            exa_api_key=os.environ.get("EXA_API_KEY", ""),
+            ora_default_origin=os.environ.get("ORA_DEFAULT_ORIGIN", "Tin Shui Wai, Hong Kong"),
             database_url=os.environ.get("DATABASE_URL", ""),
             ora_log=os.environ.get("ORA_LOG", "./ora.log"),
             ora_tz=os.environ.get("ORA_TZ", "Asia/Hong_Kong"),

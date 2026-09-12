@@ -18,7 +18,7 @@ class Person:
     name: str
     signal: str = ""
     whatsapp: str = ""
-    # WhatsApp delivers `sender_jid` as a LID (`2702…@lid`), not the phone
+    # WhatsApp delivers `sender_jid` as a LID (`<digits>@lid`), not the phone
     # jid, so inbound resolution misses on `whatsapp` alone — measured live
     # on the first real message. Both are indexed for resolve(); reverse()
     # still returns `whatsapp`, because an outbound mention has to carry the

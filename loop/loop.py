@@ -32,9 +32,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from loop import decide_gate, decide_proactive, decide_turn, orient, tag
+from loop import decide_gate, decide_proactive, decide_turn, intent, orient, recall, tag, windows
 from loop.config import Config, Room, load_config
 from loop.logging import LogSink
+from loop.memory import HonchoClient
 from loop.model import ModelClient
 from loop.observe_signal import SignalObserver
 from loop.observe_whatsapp import WhatsAppObserver
@@ -46,6 +47,7 @@ from loop.render import (
     TranscriptRow,
     join_media_into_body,
 )
+from loop.search import ExaSearchProvider
 from loop.store import Store
 
 TAG_PATTERN = re.compile(r"@ora\b", re.IGNORECASE)
@@ -190,6 +192,8 @@ class Loop:
         model: ModelClient,
         *,
         vision_client: Any | None = None,
+        honcho: Any | None = None,
+        search_provider: Any | None = None,
     ) -> None:
         self._config = config
         self._store = store
@@ -198,6 +202,10 @@ class Loop:
         self._model = model
         self._vision_client = vision_client
         self._state: dict[tuple[str, str], RoomState] = {}
+        self._guard = windows.RoomGuard()
+        self._honcho = honcho
+        self._search = search_provider
+        self._fed_through = 0
 
     def _room_state(self, room: Room) -> RoomState:
         key = (room.platform, room.conversation_id)
@@ -227,12 +235,16 @@ class Loop:
                     state.last_seen_row_id = rows[-1]["id"]
                     state.pending_rows.extend(r["id"] for r in rows)
                     state.pending_since = now
-                    for r in rows:
-                        if not r["is_ora"] and is_tagged(r["body"] or ""):
-                            await self._run_tag(room, now)
-                            state.pending_since = None
-                            state.pending_rows.clear()
-                            break
+                    await self._remember(room, rows)
+                    tagged = next(
+                        (r for r in rows if not r["is_ora"] and is_tagged(r["body"] or "")), None
+                    )
+                    if tagged is not None:
+                        async with self._guard.hold(room.platform, room.conversation_id) as held:
+                            if held:
+                                await self._run_tag(room, now, tagged["body"] or "")
+                        state.pending_since = None
+                        state.pending_rows.clear()
                     continue
 
                 if state.pending_since is None or not state.pending_rows:
@@ -241,15 +253,53 @@ class Loop:
                 if quiet_for < clocks.settle_seconds:
                     continue
 
-                window = list(state.pending_rows)
+                # Bounded to the NEWEST rows: a gate judges what is happening
+                # now, and an unbounded burst would blow the turn's budget.
+                window = windows.bound_window(
+                    list(state.pending_rows), clocks.max_window_messages
+                )
                 state.pending_since = None
                 state.pending_rows.clear()
-                await self._run_window(room, window, now)
+
+                # Skip rather than queue: by the time a running pass finishes,
+                # the window this one would judge is stale, and judging a stale
+                # window is how an agent answers a conversation that moved on.
+                async with self._guard.hold(room.platform, room.conversation_id) as held:
+                    if held:
+                        await self._run_window(room, window, now)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001 — a room must not kill the loop
                 self._sink.event("GATE", room.label, f"room pass failed: {type(exc).__name__}",
                                  error=True, platform=room.platform)
+
+    async def _remember(self, room: Room, rows: list[Any]) -> None:
+        """Feed new rows to Honcho. Memory is written at Observe; this is
+        that write. Failure is logged nowhere and costs nothing — a memory
+        that is down must not stop the room from being read."""
+        if self._honcho is None:
+            return
+        for r in rows:
+            person = self._people.resolve(room.platform, r["sender_id"]) if r["sender_id"] else None
+            label = "Ora" if r["is_ora"] else (person.name if person else "someone")
+            await recall.remember(
+                self._honcho,
+                platform=room.platform,
+                conversation_id=room.conversation_id,
+                sender_label=label,
+                body=r["body"] or "",
+                is_ora=r["is_ora"],
+                ts=r["ts"],
+            )
+
+    async def _recall(self, transcript: list[TranscriptRow]) -> recall.Recalled:
+        """Read memory back for a turn. Degrades to empty, never to wrong:
+        an empty card block simply does not render, while a fabricated one
+        would put invented history in front of a decider."""
+        if self._honcho is None:
+            return recall.Recalled(self_conclusions=[], peer_facts=[])
+        present = list({r.sender_label for r in transcript if not r.is_ora})
+        return await recall.recall_for_turn(self._honcho, present=present)
 
     async def _newest_row_id(self, room: Room) -> int:
         row = await self._store.fetchval(
@@ -264,12 +314,20 @@ class Loop:
         state = self._room_state(room)
         clocks = self._config.clocks
 
-        if state.last_spoke_at is not None:
-            since = (now - state.last_spoke_at).total_seconds()
-            if since < clocks.cooldown_seconds:
-                self._sink.event("GATE", room.label, f"no_go — cooldown ({int(since)}s)",
-                                 platform=room.platform)
-                return
+        # Derived from the is_ora rows, not from memory: an in-process
+        # `last_spoke_at` is forgotten on restart, and a forgotten cooldown
+        # means Ora speaks twice in a row, which on stage reads as broken.
+        cooldown = await windows.in_cooldown(
+            self._store, clocks,
+            platform=room.platform, conversation_id=room.conversation_id, now=now,
+        )
+        if cooldown.active:
+            why = "cooldown check failed" if cooldown.errored else (
+                f"cooldown ({int(cooldown.remaining_seconds)}s left)"
+            )
+            self._sink.event("GATE", room.label, f"no_go — {why}",
+                             platform=room.platform, error=cooldown.errored)
+            return
 
         transcript = await _transcript(self._store, room, self._people)
         standing = await _standing(self._store, room)
@@ -294,6 +352,7 @@ class Loop:
             return
 
         notes = await _open_notes(self._store, self._config.workspace)
+        recalled = await self._recall(transcript)
         result = await decide_turn.decide(
             model=self._model,
             config=self._config,
@@ -310,6 +369,8 @@ class Loop:
                 self._store, self._config.workspace, ("participation", "proactive_act", "tag")
             ),
             loop_decision_writers=("participation", "proactive_act", "tag"),
+            self_card_conclusions=recalled.self_conclusions,
+            peer_cards=recalled.peer_facts,
         )
         self._sink.event("TURN", room.label, result.verdict, platform=room.platform,
                          error=result.verdict == "failed")
@@ -317,10 +378,27 @@ class Loop:
             state.last_spoke_at = now
         await self._fold(room, now)
 
-    async def _run_tag(self, room: Room, now: datetime) -> None:
+    async def _run_tag(self, room: Room, now: datetime, tagged_text: str = "") -> None:
         transcript = await _transcript(self._store, room, self._people)
         standing = await _standing(self._store, room)
         notes = await _open_notes(self._store, self._config.workspace)
+
+        # The tools are chosen HERE, not by the model: `handle_tag` looks up
+        # whatever the caller hands it and credits `grounded_on` from what
+        # actually came back. Without this the tag turn has no tools at all.
+        intents = intent.extract(
+            tagged_text,
+            default_origin=self._config.env.ora_default_origin,
+            transcript_text="\n".join(r.body for r in transcript[-8:]),
+        )
+        route_query = (
+            (intents.route.origin, intents.route.destination) if intents.route else None
+        )
+        recalled = await self._recall(transcript)
+        peer_person, peer_facts = (
+            recalled.peer_facts[0] if recalled.peer_facts else ("", [])
+        )
+
         result = await tag.handle_tag(
             config=self._config,
             store=self._store,
@@ -332,7 +410,14 @@ class Loop:
             transcript=transcript,
             standing=standing,
             notes=_note_entries(notes),
+            route_query=route_query,
+            route_mode=intents.route.mode if intents.route else "TRANSIT",
             route_api_key=self._config.env.google_map_api_key,
+            search_query=intents.search,
+            search_provider=self._search,
+            self_card=recalled.self_conclusions,
+            peer_card_person=peer_person,
+            peer_card_facts=peer_facts,
         )
         self._sink.event("TAG", room.label, result.verdict, platform=room.platform,
                          error=result.verdict == "failed")
@@ -581,7 +666,23 @@ async def main() -> None:
         store=store,
     )
 
-    loop = Loop(config, store, sink, people, model, vision_client=client)
+    honcho = None
+    if config.env.honcho_base_url and config.env.honcho_workspace:
+        honcho = HonchoClient(
+            base_url=config.env.honcho_base_url,
+            workspace_id=config.env.honcho_workspace,
+            ai_peer=config.env.honcho_ai_peer or "ora",
+        )
+        await honcho.ensure_workspace()
+
+    search_provider = (
+        ExaSearchProvider(api_key=config.env.exa_api_key) if config.env.exa_api_key else None
+    )
+
+    loop = Loop(
+        config, store, sink, people, model,
+        vision_client=client, honcho=honcho, search_provider=search_provider,
+    )
     rooms = list(config.rooms.values())
     sink.event("OBSERVE", "-", f"up: {len(rooms)} room(s), workspace {config.workspace}")
 

@@ -24,3 +24,7 @@ design/
 # real ids and PII — never committed (templates: *.example)
 rooms.toml
 people.toml
+
+# runtime log — contains real chat content
+ora.log
+*.log

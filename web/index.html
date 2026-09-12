@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ora — stage avatar</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, #171923 0%, #0a0b10 100%);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #live2d-canvas {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  #live2d-canvas[hidden] { display: none; }
+
+  /* --- fallback avatar: a pulsing orb with a mouth that flaps when Ora
+     speaks. Shown whenever the real Live2D model fails to load or render;
+     a working fallback beats a broken canvas on stage. --- */
+  #fallback {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #fallback[hidden] { display: none; }
+  #orb {
+    width: 34vmin; height: 34vmin; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #7dd3fc, #2563eb 55%, #1e1b4b 100%);
+    box-shadow: 0 0 6vmin rgba(96, 165, 250, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+  }
+  #orb.idle { animation: breathe 3.2s ease-in-out infinite; }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.035); }
+  }
+  #mouth {
+    width: 40%; height: 8%;
+    background: #0a0b10;
+    border-radius: 50%;
+    transform-origin: center;
+    transition: transform 0.06s linear;
+  }
+
+  #caption {
+    position: fixed; left: 0; right: 0; bottom: 6vh;
+    display: flex; justify-content: center;
+    pointer-events: none;
+  }
+  #caption-text {
+    max-width: 80vw;
+    background: rgba(10, 11, 16, 0.72);
+    color: #f5f5f7;
+    padding: 0.75em 1.25em;
+    border-radius: 999px;
+    font-size: clamp(14px, 2.2vw, 22px);
+    line-height: 1.4;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  #caption-text.visible { opacity: 1; }
+
+  #status {
+    position: fixed; top: 12px; left: 12px;
+    font-size: 12px; color: #94a3b8;
+    display: flex; align-items: center; gap: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  #status .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ef4444; display: inline-block;
+  }
+  #status .dot.connected { background: #22c55e; }
+  #room-badge {
+    position: fixed; top: 12px; right: 12px;
+    font-size: 12px; color: #cbd5e1;
+    background: rgba(255,255,255,0.06);
+    padding: 4px 10px; border-radius: 999px;
+    min-height: 1em;
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="live2d-canvas" hidden></canvas>
+    <div id="fallback" hidden>
+      <div id="orb" class="idle">
+        <div id="mouth"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="caption"><div id="caption-text"></div></div>
+  <div id="status"><span class="dot" id="status-dot"></span><span id="status-text">connecting…</span></div>
+  <div id="room-badge" id="room-badge"></div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------
+// Config: which SSE endpoint to subscribe to. When this page is opened
+// straight from disk (file://) there is no same-origin server to hit, so
+// default to localhost on the Presenter's default port; when served BY
+// the aiohttp server itself, use a same-origin relative URL instead.
+// Override with ?events=<url> if the owner runs the server elsewhere.
+// ---------------------------------------------------------------------
+const params = new URLSearchParams(location.search);
+const DEFAULT_PORT = 8765;
+const EVENTS_URL = params.get("events")
+  || (location.protocol === "file:"
+        ? `http://localhost:${DEFAULT_PORT}/events`
+        : "/events");
+
+const statusDot = document.getElementById("status-dot");
+const statusText = document.getElementById("status-text");
+const roomBadge = document.getElementById("room-badge");
+const captionText = document.getElementById("caption-text");
+const canvas = document.getElementById("live2d-canvas");
+const fallback = document.getElementById("fallback");
+const orb = document.getElementById("orb");
+const mouth = document.getElementById("mouth");
+
+let mouthDriver = null; // set once we know whether Live2D or the fallback is live
+let speaking = false;
+let captionTimer = null;
+
+function setStatus(connected, label) {
+  statusDot.classList.toggle("connected", connected);
+  statusText.textContent = label;
+}
+
+function showCaption(text) {
+  captionText.textContent = text;
+  captionText.classList.add("visible");
+  clearTimeout(captionTimer);
+  captionTimer = setTimeout(() => captionText.classList.remove("visible"), 9000);
+}
+
+// ---------------------------------------------------------------------
+// Fallback avatar: a pulsing orb whose "mouth" flaps on a simple sine
+// wave while `speaking` is true. Always initialised first so there is
+// never a blank stage while Live2D is (maybe) still loading.
+// ---------------------------------------------------------------------
+function useFallback() {
+  canvas.hidden = true;
+  fallback.hidden = false;
+  let raf = null;
+  function tick(t) {
+    if (speaking) {
+      orb.classList.remove("idle");
+      const wave = Math.abs(Math.sin(t / 90)) * 0.9 + 0.1;
+      mouth.style.transform = `scaleY(${wave.toFixed(3)})`;
+      orb.style.boxShadow = `0 0 ${6 + wave * 3}vmin rgba(96, 165, 250, ${0.45 + wave * 0.35})`;
+    } else {
+      orb.classList.add("idle");
+      mouth.style.transform = "scaleY(0.15)";
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+  mouthDriver = { setSpeaking(v) { speaking = v; } };
+}
+
+// ---------------------------------------------------------------------
+// Real Live2D avatar via pixi-live2d-display (Cubism 2 runtime) + PIXI.
+// Loaded entirely from CDN, no build step. Any failure at any stage
+// (script load, model fetch, missing params) falls back to the orb —
+// never leaves a broken canvas on screen.
+// ---------------------------------------------------------------------
+const PIXI_URL = "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js";
+const CUBISM2_CORE_URL = "https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js";
+const PIXI_LIVE2D_URL = "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism2.min.js";
+const MODEL_URL = "https://cdn.jsdelivr.net/npm/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json";
+const LIVE2D_LOAD_TIMEOUT_MS = 9000;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = src;
+    el.onload = () => resolve();
+    el.onerror = () => reject(new Error("failed to load " + src));
+    document.head.appendChild(el);
+  });
+}
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + " timed out")), ms)),
+  ]);
+}
+
+// Candidate mouth-open parameter names across Cubism2/3/4-style models —
+// tried in order, first one that doesn't throw wins. This is cosmetic
+// lip movement, not real lip-sync (Web Speech has no audio buffer to
+// analyse), matching the "no need perfect" brief.
+const MOUTH_PARAMS = ["PARAM_MOUTH_OPEN_Y", "ParamMouthOpenY"];
+
+async function useLive2D() {
+  await withTimeout(loadScript(PIXI_URL), LIVE2D_LOAD_TIMEOUT_MS, "pixi.js");
+  await withTimeout(loadScript(CUBISM2_CORE_URL), LIVE2D_LOAD_TIMEOUT_MS, "cubism2 core");
+  await withTimeout(loadScript(PIXI_LIVE2D_URL), LIVE2D_LOAD_TIMEOUT_MS, "pixi-live2d-display");
+
+  if (!window.PIXI || !window.PIXI.live2d || !window.PIXI.live2d.Live2DModel) {
+    throw new Error("pixi-live2d-display did not attach PIXI.live2d");
+  }
+
+  const app = new PIXI.Application({
+    view: canvas,
+    autoStart: true,
+    backgroundAlpha: 0,
+    resizeTo: window,
+    antialias: true,
+  });
+
+  const model = await withTimeout(
+    PIXI.live2d.Live2DModel.from(MODEL_URL),
+    LIVE2D_LOAD_TIMEOUT_MS,
+    "model fetch"
+  );
+  app.stage.addChild(model);
+
+  function layout() {
+    const scale = Math.min(app.renderer.width / model.width, app.renderer.height / model.height) * 0.85;
+    model.scale.set(scale);
+    model.x = (app.renderer.width - model.width * scale) / 2;
+    model.y = (app.renderer.height - model.height * scale) / 2;
+  }
+  layout();
+  window.addEventListener("resize", layout);
+
+  let workingParam = null;
+  function setMouth(value) {
+    const core = model.internalModel && model.internalModel.coreModel;
+    if (!core || typeof core.setParamFloat !== "function") return;
+    if (workingParam) {
+      try { core.setParamFloat(workingParam, value); return; } catch { /* fall through */ }
+    }
+    for (const name of MOUTH_PARAMS) {
+      try {
+        core.setParamFloat(name, value);
+        workingParam = name;
+        return;
+      } catch { /* try next candidate */ }
+    }
+  }
+
+  app.ticker.add(() => {
+    if (!speaking) { setMouth(0); return; }
+    const t = performance.now() / 1000;
+    const wave = (Math.sin(t * 11) + 1) * 0.5 * 0.6 + (Math.sin(t * 3.7) + 1) * 0.5 * 0.4;
+    setMouth(wave);
+  });
+
+  canvas.hidden = false;
+  fallback.hidden = true;
+  mouthDriver = { setSpeaking(v) { speaking = v; } };
+}
+
+async function initAvatar() {
+  useFallback(); // never leave a blank stage, even briefly
+  try {
+    await useLive2D();
+    console.log("[ora] Live2D avatar rendering (pixi-live2d-display + shizuku)");
+  } catch (err) {
+    console.warn("[ora] Live2D unavailable, staying on the fallback orb:", err);
+  }
+}
+
+// ---------------------------------------------------------------------
+// Speech: Web Speech `speechSynthesis`. The room mixes Cantonese and
+// English, so prefer a zh-HK voice when the browser has one installed;
+// degrade to whatever default voice exists rather than failing to speak.
+// ---------------------------------------------------------------------
+function pickVoice() {
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  return (
+    voices.find(v => v.lang === "zh-HK") ||
+    voices.find(v => v.lang && v.lang.toLowerCase().startsWith("zh-hk")) ||
+    voices.find(v => v.lang && v.lang.toLowerCase().includes("yue")) ||
+    null // undefined voice -> browser default, never a hard failure
+  );
+}
+
+function speakLine(text) {
+  showCaption(text);
+  if (mouthDriver) mouthDriver.setSpeaking(true);
+
+  if (!("speechSynthesis" in window) || !text) {
+    // No TTS available (or nothing to say aloud) — the avatar still
+    // "reacts" visually for a few seconds so the room sees something.
+    setTimeout(() => mouthDriver && mouthDriver.setSpeaking(false), Math.min(6000, 1200 + text.length * 60));
+    return;
+  }
+  try {
+    window.speechSynthesis.cancel(); // don't queue behind a stale line
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = pickVoice();
+    if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+    else { utterance.lang = "zh-HK"; } // hint only; browser falls back silently if absent
+    utterance.onend = () => mouthDriver && mouthDriver.setSpeaking(false);
+    utterance.onerror = () => mouthDriver && mouthDriver.setSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn("[ora] speechSynthesis failed, avatar reacted silently:", err);
+    setTimeout(() => mouthDriver && mouthDriver.setSpeaking(false), 2500);
+  }
+}
+if ("speechSynthesis" in window) {
+  // Voice lists load asynchronously in most browsers.
+  window.speechSynthesis.onvoiceschanged = () => pickVoice();
+}
+
+// ---------------------------------------------------------------------
+// SSE subscription. EventSource retries on its own; we just reflect
+// connection state and hand each line to the avatar as it arrives.
+// ---------------------------------------------------------------------
+function connect() {
+  let source;
+  try {
+    source = new EventSource(EVENTS_URL);
+  } catch (err) {
+    setStatus(false, "cannot connect (" + EVENTS_URL + ")");
+    console.error("[ora] EventSource construction failed:", err);
+    return;
+  }
+  source.onopen = () => setStatus(true, "live — " + EVENTS_URL);
+  source.onerror = () => setStatus(false, "reconnecting…");
+  source.onmessage = (event) => {
+    try {
+      const line = JSON.parse(event.data);
+      roomBadge.textContent = [line.platform, line.room].filter(Boolean).join(" · ");
+      speakLine(String(line.text || ""));
+    } catch (err) {
+      console.warn("[ora] unparseable SSE payload, ignoring:", err);
+    }
+  };
+}
+
+initAvatar();
+connect();
+</script>
+</body>
+</html>
