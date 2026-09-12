@@ -38,7 +38,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from loop import decisions
+from loop import decisions, tools
 from loop.act import deliver
 from loop.config import Config
 from loop.model import ModelClient
@@ -115,6 +115,7 @@ def _build_prompt(
     loop_decision_writers: tuple[str, ...],
     self_card_conclusions: list[str],
     peer_cards: list[tuple[str, list[str]]],
+    tool_run: Any = None,
 ) -> str:
     """Every block `render.py` owns, joined — never hand-rolled prompt
     text. `loop_decisions` defaults to every writer (not just this one's
@@ -128,6 +129,8 @@ def _build_prompt(
         render_self_card(self_card_conclusions),
     ]
     blocks.extend(render_peer_card(person, facts) for person, facts in peer_cards)
+    if tool_run is not None:
+        blocks.extend(tools.blocks(tool_run))
     return "\n\n".join(block for block in blocks if block)
 
 
@@ -144,6 +147,7 @@ def _grounded_on_is_valid(
     *,
     valid_note_ids: frozenset[str] | None = None,
     standing_present: bool = True,
+    tool_run: Any = None,
 ) -> bool:
     """`note:<id>` | `standing` | `tool:<name>` (prompts/turn.md's own
     contract) — anything else (missing, wrong type, empty id/name, a
@@ -158,9 +162,11 @@ def _grounded_on_is_valid(
     `tag.py` already validates this way; the participation turn is the path
     most likely to speak on stage, so the hole mattered more here.
 
-    `tool:` is rejected outright: the ambient turn has no tools. A model
-    claiming one used a tool that does not exist on this path is exactly
-    the hallucination the brake is for.
+    `tool:` is credited only when that tool actually ran and returned
+    something this turn (`tool_run.grounded`). The ambient turn now has the
+    same tools as the tag path, so the question is no longer "could a tool
+    have run here" but "did this one, and did it come back with anything" —
+    a claimed `tool:route` whose lookup returned `no_route` grounds nothing.
     """
     if not isinstance(value, str):
         return False
@@ -171,6 +177,8 @@ def _grounded_on_is_valid(
         if not note_id:
             return False
         return valid_note_ids is None or note_id in valid_note_ids
+    if value.startswith("tool:"):
+        return tool_run is not None and value in tool_run.grounded
     return False
 
 
@@ -271,6 +279,7 @@ async def decide(
     loop_decision_writers: tuple[str, ...] = (),
     self_card_conclusions: list[str] | None = None,
     peer_cards: list[tuple[str, list[str]]] | None = None,
+    tool_run: Any = None,
     session: Any = None,
     timeout_seconds: float | None = None,
 ) -> TurnResult:
@@ -301,6 +310,7 @@ async def decide(
             loop_decision_writers=loop_decision_writers,
             self_card_conclusions=self_card_conclusions or [],
             peer_cards=peer_cards or [],
+            tool_run=tool_run,
             session=session,
             timeout_seconds=timeout_seconds,
         )
@@ -326,6 +336,7 @@ async def _decide(
     loop_decision_writers: tuple[str, ...],
     self_card_conclusions: list[str],
     peer_cards: list[tuple[str, list[str]]],
+    tool_run: Any,
     session: Any,
     timeout_seconds: float | None,
 ) -> TurnResult:
@@ -339,6 +350,7 @@ async def _decide(
         loop_decision_writers=loop_decision_writers,
         self_card_conclusions=self_card_conclusions,
         peer_cards=peer_cards,
+        tool_run=tool_run,
     )
 
     try:
@@ -395,6 +407,7 @@ async def _decide(
             grounded_on,
             valid_note_ids=offered_note_ids,
             standing_present=standing is not None and bool(standing.body.strip()),
+            tool_run=tool_run,
         ):
             # THE BRAKE (ORA-10): a speak with nothing behind it never
             # reaches `deliver` — see test_ungrounded_speak_is_hold_and_never_delivers.

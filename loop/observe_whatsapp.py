@@ -5,12 +5,23 @@ byte-for-byte (long-lived GET, full-jitter exponential backoff, heartbeat/
 dropped handled at listener level and never reaching the parser).
 
 `parse_event` is a TRIMMED `reference/platform/whatsapp/parser.py::parse_event`:
-no reactions, no mentions, no quotes — group text (and now image attachments)
-only, and no JID-form disambiguation (`reference/platform/whatsapp/jid.py`'s
-phone/lid forms) since Ora resolves people from the raw `sender_jid`
-`people.toml` carries, not a normalized form. `from_me` is dropped at parse
-time (R-12's first pass) — load-bearing even inside a listed room, same as
-Signal's own-send rule (Opus audit finding 12).
+no reactions, no mentions, still no quote threading — group text (and now
+image attachments, and enough of `quoted` to say whether a reply targets
+Ora's own send) only, and no JID-form disambiguation
+(`reference/platform/whatsapp/jid.py`'s phone/lid forms) since Ora resolves
+people from the raw `sender_jid` `people.toml` carries, not a normalized
+form. `from_me` is dropped at parse time (R-12's first pass) — load-bearing
+even inside a listed room, same as Signal's own-send rule (Opus audit
+finding 12).
+
+**The `quoted` field's populated shape is UNVERIFIED.** Every live event
+measured so far (2026-09-12) carries a bare `"quoted":null` — no reply has
+actually arrived on this deployment, so `_quoted_is_ora` reads defensively,
+the same honesty the `media` docstring below carries for an unmeasured
+element shape: whichever of `sender_jid` / `sender_phone` (mirroring the
+top-level message's own field names) or `participant` (the raw WhatsApp
+protocol's usual name for a group message's original sender) the quoted
+object happens to carry, checked against Ora's own measured WhatsApp ids.
 
 **The `media` element's shape is UNVERIFIED.** The bridge's documented event
 shape (measured live, 2026-09-12) shows only an empty `"media": []` — no
@@ -69,6 +80,13 @@ log = logging.getLogger("ora.whatsapp.listener")
 
 _IMAGE_TYPES_ALLOWED_PREFIX = "image/"
 _NON_IMAGE_KINDS = {"video", "audio", "document", "sticker", "ptt", "voice"}
+
+# Ora's own WhatsApp ids (measured live, 2026-09-12) — used only to tell
+# whether a QUOTED message was sent by Ora herself. This is a different
+# question from `from_me` above (which drops Ora's own sends outright):
+# this is about someone ELSE's message replying to one of Ora's.
+OWN_WHATSAPP_PHONE = "85255087304"
+OWN_WHATSAPP_LID = "137259286286429"
 
 # 8 MiB — parity with Signal's MAX_IMAGE_BYTES (observe_signal.py). Defined
 # locally rather than imported so this module never depends on another
@@ -203,6 +221,29 @@ class ParsedMessage:
     ts: datetime
     body: str
     image: AttachmentRef | None = None
+    # The bridge's own message id (`event["id"]`) — what a later `react()`
+    # needs as WhatsApp's `POST /react` target. `None` if the event carried
+    # none.
+    platform_message_id: str | None = None
+    # Whether this message's own `quoted` field points at a message Ora
+    # herself sent. See `_quoted_is_ora` — the populated shape is UNVERIFIED.
+    is_reply_to_ora: bool = False
+
+
+def _quoted_is_ora(quoted: Any) -> bool:
+    """Whether `quoted` (the event's own `"quoted"` field) points at a
+    message Ora herself sent. See the module docstring: the populated shape
+    is UNVERIFIED, so this reads defensively rather than asserting one
+    layout."""
+    if not isinstance(quoted, dict):
+        return False
+    for key in ("sender_jid", "sender_phone", "participant", "author"):
+        value = quoted.get(key)
+        if not isinstance(value, str) or not value:
+            continue
+        if value.split("@", 1)[0] in (OWN_WHATSAPP_PHONE, OWN_WHATSAPP_LID):
+            return True
+    return False
 
 
 def parse_event(event: dict) -> ParsedMessage | None:
@@ -233,6 +274,7 @@ def parse_event(event: dict) -> ParsedMessage | None:
             if isinstance(ts_ms, int) and not isinstance(ts_ms, bool) and ts_ms
             else datetime.now(UTC)
         )
+        platform_id = event.get("id")
         return ParsedMessage(
             platform="whatsapp",
             conversation_id=chat_jid,
@@ -241,6 +283,8 @@ def parse_event(event: dict) -> ParsedMessage | None:
             ts=ts,
             body=text,
             image=image,
+            platform_message_id=str(platform_id) if platform_id else None,
+            is_reply_to_ora=_quoted_is_ora(event.get("quoted")),
         )
     except Exception:
         log.exception("unparseable whatsapp event, skipping")
@@ -362,8 +406,9 @@ class WhatsAppObserver:
         await self._store.execute(
             """INSERT INTO messages
                (platform, conversation_id, workspace, sender_id, person_id,
-                is_ora, ts, body, body_len, media_sha256)
-               VALUES ($1,$2,$3,$4,$5,FALSE,$6,$7,$8,$9)""",
+                is_ora, ts, body, body_len, media_sha256, platform_message_id,
+                is_reply_to_ora)
+               VALUES ($1,$2,$3,$4,$5,FALSE,$6,$7,$8,$9,$10,$11)""",
             "whatsapp",
             parsed.conversation_id,
             self._config.workspace,
@@ -373,6 +418,8 @@ class WhatsAppObserver:
             body,
             len(body),
             media_sha256,
+            parsed.platform_message_id,
+            parsed.is_reply_to_ora,
         )
         self._sink.event(
             "OBSERVE",

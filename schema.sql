@@ -110,6 +110,29 @@ CREATE TABLE IF NOT EXISTS media_objects (
 -- ALTER keeps schema.sql idempotent without a migration tool (ORA-16).
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_sha256 TEXT REFERENCES media_objects(sha256);
 
+-- Added for reactions (the 👀/✅/⚠️ feedback a tagged reply gets) after
+-- messages already shipped with no platform id; a plain ALTER keeps
+-- schema.sql idempotent without a migration tool (ORA-16), same discipline
+-- as media_sha256 above. WhatsApp: the bridge's own message `"id"` field —
+-- its `POST /react` looks this id up in its own recent-message cache.
+-- Signal: reactions are targeted by timestamp + author, not an opaque id
+-- (there is none on that wire) — this column carries the message's own
+-- envelope timestamp in milliseconds, as text; the author is the row's
+-- existing `sender_id`, so no second column is needed for it.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS platform_message_id TEXT;
+-- Whether this row's own quote/reply points back at something Ora sent
+-- (WhatsApp's `quoted`, Signal's `dataMessage.quote`) — computed once by
+-- the observer at ingest so a caller never re-parses the raw event to ask.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_reply_to_ora BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS reactions (  -- best-effort trace of react() attempts (decoration, never load-bearing; never read by a decider)
+  id BIGSERIAL PRIMARY KEY,
+  platform TEXT NOT NULL, conversation_id TEXT NOT NULL,
+  platform_message_id TEXT, emoji TEXT NOT NULL,
+  ok BOOLEAN NOT NULL, reason TEXT NOT NULL DEFAULT '',
+  ts TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS model_calls (  -- one row per model call, every stage; the trace, in a table
   id BIGSERIAL PRIMARY KEY,
   stage TEXT NOT NULL,               -- 'gate' | 'turn' | 'tag' | 'fold' | 'notes' | 'curation' | 'proactive_decide' | 'proactive_act' | 'vision' (ORA-18)

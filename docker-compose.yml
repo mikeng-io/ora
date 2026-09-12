@@ -161,6 +161,23 @@ services:
       - EMBEDDING_VECTOR_DIMENSIONS=1024
       - OPENAI_BASE_URL=http://host.docker.internal:11434/v1
       - OPENAI_API_KEY=ollama
+      # The dialectic endpoint (`POST /peers/{id}/chat`) is what makes memory
+      # ASKABLE rather than only pushed into a prompt as a pre-rendered card.
+      # It carries its own per-level model config, defaulting to gpt-5.4-mini
+      # over OpenAI's transport — so it 500'd with NotFoundError, the same
+      # shape of bug as the deriver, on a path nothing else exercises.
+      # `minimal` is pinned as the level Ora asks at: an agentic search with
+      # five tool iterations is latency a group chat cannot spend.
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__transport=openai
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__model=deepseek-v4-flash
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__overrides__base_url=https://ollama.com/v1
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__overrides__api_key=${OLLAMA_CLOUD_API_KEY}
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__structured_output_mode=json_object
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__transport=openai
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__model=deepseek-v4-flash
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__overrides__base_url=https://ollama.com/v1
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__overrides__api_key=${OLLAMA_CLOUD_API_KEY}
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__structured_output_mode=json_object
 
   # honcho-deriver — the half that actually thinks.
   #

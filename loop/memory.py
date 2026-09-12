@@ -205,6 +205,52 @@ class HonchoClient:
             return []
         return [str(line).lstrip("-* ").strip() for line in card if str(line).strip()]
 
+    async def ask(
+        self,
+        *,
+        question: str,
+        peer_id: str | None = None,
+        target: str | None = None,
+        timeout: float | None = None,
+    ) -> str:
+        """Ask memory a question in plain language.
+
+        `POST /peers/{id}/chat` — Honcho's dialectic endpoint, which runs an
+        agentic search over everything it has concluded about a peer and
+        answers. This is the difference between memory that is *pushed* into
+        a prompt as a pre-rendered card and memory Ora can actually
+        interrogate: the card says what Honcho thought was salient, this
+        answers what was asked.
+
+        `peer_id` is the OBSERVER (default: Ora's own peer, i.e. what Ora
+        remembers); `target` narrows it to what the observer knows about one
+        other person.
+
+        `""` on any failure. An empty answer renders as no block at all,
+        which is honest; a fabricated one would put invented history in
+        front of a decider, which is the failure this whole discipline
+        exists to prevent.
+        """
+        observer = peer_id or self.ai_peer
+        # `minimal` deliberately: the default level runs an agentic search
+        # with five tool iterations, which is latency a group chat cannot
+        # spend waiting to remember something.
+        payload: dict[str, object] = {"query": question, "reasoning_level": "minimal"}
+        if target is not None:
+            payload["target"] = target
+        result = await self._post(
+            self._url(f"/peers/{observer}/chat"),
+            payload,
+            timeout or self.representation_timeout,
+        )
+        if not isinstance(result, dict):
+            return ""
+        for key in ("content", "answer", "response", "text"):
+            value = result.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
     async def representation(
         self,
         *,

@@ -123,6 +123,45 @@ def _schema() -> list[dict[str, Any]]:
         {
             "type": "function",
             "function": {
+                "name": "ask_memory",
+                "description": (
+                    "Ask your own long-term memory about these people in plain language — "
+                    "what someone said before, what was decided, what you know about them. "
+                    "Use this when the answer is in the group's history rather than on the web. "
+                    "Optionally name one person with 'about'."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "question": {"type": "string"},
+                        "about": {"type": "string", "description": "One person's name"},
+                    },
+                    "required": ["question"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "remember",
+                "description": (
+                    "Write one durable fact about a person into long-term memory. "
+                    "Only for something worth recalling weeks from now — a preference, a "
+                    "commitment, a lasting detail. Never for small talk or passing chatter."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "fact": {"type": "string"},
+                        "about": {"type": "string", "description": "One person's name"},
+                    },
+                    "required": ["fact"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "fetch",
                 "description": "Read a web page someone linked, when they are asking about it.",
                 "parameters": {
@@ -148,12 +187,16 @@ class Toolbox:
         default_origin: str = "",
         search_provider: Any = None,
         weather_fn: Any = None,
+        honcho: Any = None,
+        conversation_id: str = "",
     ) -> None:
         self._route_fn = route_fn
         self._route_api_key = route_api_key
         self._default_origin = default_origin
         self._search = search_provider
         self._weather = weather_fn
+        self._honcho = honcho
+        self._conversation_id = conversation_id
 
     def schema(self) -> list[dict[str, Any]]:
         return _schema()
@@ -181,6 +224,29 @@ class Toolbox:
                 if self._search is None:
                     return {"status": "unavailable", "note": "search not configured"}
                 return await self._search.search(query=str(args.get("query") or ""))
+            if name == "ask_memory":
+                if self._honcho is None:
+                    return {"status": "unavailable", "note": "memory not configured"}
+                answer = await self._honcho.ask(
+                    question=str(args.get("question") or ""),
+                    target=(str(args.get("about")).strip() or None) if args.get("about") else None,
+                )
+                if not answer:
+                    return {"status": "nothing_found", "note": "memory had nothing on that"}
+                return {"status": "ok", "answer": answer}
+            if name == "remember":
+                if self._honcho is None or not self._conversation_id:
+                    return {"status": "unavailable", "note": "memory not configured"}
+                fact = str(args.get("fact") or "").strip()
+                if not fact:
+                    return {"status": "nothing_found", "note": "nothing to remember"}
+                about = str(args.get("about") or "").strip().lower()
+                ok = await self._honcho.feed(
+                    peer_id=about or "ora",
+                    text=fact,
+                    conversation_id=self._conversation_id,
+                )
+                return {"status": "ok" if ok else "unavailable", "stored": fact}
             if name == "fetch":
                 if self._search is None:
                     return {"status": "unavailable", "note": "fetch not configured"}

@@ -45,7 +45,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from loop import decisions
+from loop import decisions, toolcall
 from loop.act import Delivery
 from loop.act import deliver as _default_deliver
 from loop.config import Config
@@ -165,6 +165,32 @@ def is_search_grounded(result: dict[str, Any] | None) -> bool:
     return isinstance(results, list) and len(results) > 0
 
 
+def is_fetch_grounded(result: dict[str, Any] | None) -> bool:
+    """A fetch only grounds an answer when a page actually came back with
+    text in it. A 404, a timeout, or an empty body is `unavailable` — and
+    crediting `tool:fetch` for it would put a citation on an answer that
+    read nothing."""
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        return False
+    content = result.get("content")
+    return isinstance(content, str) and bool(content.strip())
+
+
+def render_fetch_block(result: dict[str, Any] | None) -> str:
+    """One `<tool name="fetch">` block. The page body arrives pre-escaped
+    and source-wrapped from `ExaSearchProvider` (`render.wrap`), the same
+    as a search result: a fetched page is text a stranger wrote, so it is
+    marked untrusted rather than folded into the instruction."""
+    if not isinstance(result, dict):
+        return ""
+    status = str(result.get("status") or "unavailable")
+    if status != "ok":
+        return f'<tool name="fetch" status="{escape_attr(status)}"></tool>'
+    content = str(result.get("content") or "")
+    url = escape_attr(str(result.get("url") or ""))
+    return f'<tool name="fetch" status="ok" url="{url}" untrusted="true">\n{content}\n</tool>'
+
+
 def _validate_grounded_on(
     claim: Any,
     *,
@@ -172,6 +198,7 @@ def _validate_grounded_on(
     valid_note_ids: set[str],
     route_grounded: bool,
     search_grounded: bool,
+    fetch_grounded: bool = False,
 ) -> str | None:
     """What the answer actually rests on, checked against reality rather
     than trusted from the model's own claim (rule 3). Returns the
@@ -189,6 +216,8 @@ def _validate_grounded_on(
         return claim if route_grounded else None
     if claim == "tool:search":
         return claim if search_grounded else None
+    if claim == "tool:fetch":
+        return claim if fetch_grounded else None
     return None
 
 
@@ -260,6 +289,7 @@ async def handle_tag(
     route_fn: Any = _default_route,
     search_query: str | None = None,
     search_provider: Any = None,
+    toolbox: Any = None,
     reasoning_effort: str = "low",
     timeout_seconds: float | None = None,
     deliver_fn: Any = _default_deliver,
@@ -293,6 +323,7 @@ async def handle_tag(
             route_fn=route_fn,
             search_query=search_query,
             search_provider=search_provider,
+            toolbox=toolbox,
             reasoning_effort=reasoning_effort,
             timeout_seconds=timeout_seconds,
             deliver_fn=deliver_fn,
@@ -333,32 +364,12 @@ async def _handle_tag(
     route_fn: Any,
     search_query: str | None,
     search_provider: Any,
+    toolbox: Any,
     reasoning_effort: str,
     timeout_seconds: float | None,
     deliver_fn: Any,
     record_decision: Any,
 ) -> TagResult:
-    # --- tools first: the turn model never gets a turn to ask for one ---
-    route_result: dict[str, Any] | None = None
-    if route_query is not None:
-        origin, destination = route_query
-        if not route_api_key:
-            route_result = {"status": "unavailable", "note": "no route api key configured"}
-        else:
-            route_result = await route_fn(
-                api_key=route_api_key, origin=origin, destination=destination, mode=route_mode
-            )
-
-    search_result: dict[str, Any] | None = None
-    if search_query is not None:
-        if search_provider is None:
-            search_result = {"status": "unavailable", "note": "no search provider configured"}
-        else:
-            search_result = await search_provider.search(query=search_query)
-
-    route_grounded = is_route_grounded(route_result)
-    search_grounded = is_search_grounded(search_result)
-
     # --- build the prompt: our own "called" header + turn.md's shared contract ---
     system = _TAG_CONTEXT_HEADER + "\n\n" + load_output_contract()
 
@@ -369,20 +380,25 @@ async def _handle_tag(
         render_loop_decisions(list(loop_decisions), now=now, writers=loop_decision_writers),
         render_self_card(list(self_card)),
         render_peer_card(peer_card_person, list(peer_card_facts)) if peer_card_facts else "",
-        render_route_block(route_result),
-        render_search_block(search_result),
     ]
     prompt = "\n\n".join(b for b in blocks if b)
 
-    completion = await model.complete_json(
+    # The model picks its own tools and runs as many rounds as it needs.
+    # Replaced a keyword matcher that chose them for it: that could not tell
+    # «點樣去中環» from «中環好唔好玩», and the model can.
+    loop_result = await toolcall.run(
+        model,
+        toolbox or toolcall.Toolbox(),
         stage="tag",
         system=system,
         prompt=prompt,
         reasoning_effort=reasoning_effort,
         platform=platform,
         conversation_id=conversation_id,
-        timeout_seconds=timeout_seconds,
     )
+    completion = loop_result
+    route_grounded = "tool:route" in loop_result.grounded
+    search_grounded = "tool:search" in loop_result.grounded
 
     if not completion.ok:
         return await _record_failed(

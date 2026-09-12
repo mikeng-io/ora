@@ -109,11 +109,13 @@ class RecordingStore:
         elif "INSERT INTO messages" in query:
             (
                 platform, conversation_id, workspace, sender_id, person_id,
-                ts, body, body_len, media_sha256,
+                ts, body, body_len, media_sha256, platform_message_id,
+                is_reply_to_ora,
             ) = args
             self.inserted_messages.append(
                 {"platform": platform, "conversation_id": conversation_id, "body": body,
-                 "media_sha256": media_sha256}
+                 "media_sha256": media_sha256, "platform_message_id": platform_message_id,
+                 "is_reply_to_ora": is_reply_to_ora}
             )
         elif "INSERT INTO model_calls" in query:
             pass

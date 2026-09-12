@@ -5,12 +5,23 @@ byte-for-byte (long-lived GET, full-jitter exponential backoff, one bad
 event logged and skipped, a raising handler never killing the stream).
 
 `parse_event` is a TRIMMED `reference/platform/signal/parser.py::parse_event`:
-no reactions, no stickers, no mentions, no quotes — group text (and now
-image attachments, ORA-18) only. Two rules kept because they are
-load-bearing, not incidental (Opus audit finding 12): a `syncMessage` (no
-`dataMessage`) parses to `None`, and `own_account`'s own send parses to
-`None` even inside a listed room — the allowlist alone cannot catch that,
-because the sync row's conversation_id IS the listed group.
+no reactions, no stickers, no mentions, no quote threading — group text
+(and now image attachments, ORA-18, and enough of `dataMessage.quote` to
+say whether a reply targets Ora's own send) only. Two rules kept because
+they are load-bearing, not incidental (Opus audit finding 12): a
+`syncMessage` (no `dataMessage`) parses to `None`, and `own_account`'s own
+send parses to `None` even inside a listed room — the allowlist alone
+cannot catch that, because the sync row's conversation_id IS the listed
+group.
+
+`_quoted_author` reads `dataMessage.quote` — a MEASURED shape, not an
+inferred one: Nora's own working parser
+(`~/Workplace/nora/nora/platform/signal/parser.py::_quoted`) reads exactly
+this live, and her docstring there explains why (`quote.id` is the
+parent's sent-timestamp, required by signal-cli's own `quote.schema.json`;
+`author`/`authorUuid`/`authorNumber` name the original sender). Ora only
+needs the author, to say whether a reply targets her own send — no quote
+text, no threading, in v1.
 
 `SignalObserver.handle_event` is the allowlist gate: parse, then check
 `rooms.toml` — dropped before any store write, DROP logged once per room.
@@ -137,6 +148,15 @@ class ParsedMessage:
     ts: datetime
     body: str
     image: AttachmentRef | None = None
+    # The envelope timestamp in milliseconds, as text — what a later
+    # `react()` needs as Signal's reaction target (paired with `sender_id`
+    # as the author). `None` only if the envelope carried no timestamp at
+    # all (parse_event then falls back to `datetime.now`, so there is
+    # nothing to target).
+    platform_message_id: str | None = None
+    # Whether this message's own `dataMessage.quote` points at a message
+    # Ora herself sent (`sender_id` of the quoted parent == `own_account`).
+    is_reply_to_ora: bool = False
 
 
 def _extract_envelope(event: dict) -> dict | None:
@@ -183,6 +203,18 @@ def _first_image(data: dict) -> AttachmentRef | None:
     return None
 
 
+def _quoted_author(data: dict) -> str | None:
+    """The author of the message this one replies to, or `None` — see the
+    module docstring: `dataMessage.quote` is a measured Signal wire shape
+    (Nora's own working parser reads it live), read here only far enough to
+    say whether a reply targets Ora's own send."""
+    quote = data.get("quote")
+    if not isinstance(quote, dict):
+        return None
+    author = quote.get("author") or quote.get("authorUuid") or quote.get("authorNumber")
+    return str(author) if author else None
+
+
 def parse_event(event: dict, own_account: str) -> ParsedMessage | None:
     """`None` for: an unparseable envelope, a `syncMessage`/typing/receipt
     (no `dataMessage`), a DM (no `groupInfo`), her own send (even inside a
@@ -211,6 +243,7 @@ def parse_event(event: dict, own_account: str) -> ParsedMessage | None:
             return None  # reaction / sticker / voice-note-only — trimmed in v1
 
         ts_ms = int(env.get("timestamp") or data.get("timestamp") or 0)
+        quoted_author = _quoted_author(data)
         return ParsedMessage(
             platform="signal",
             conversation_id=group_id,
@@ -219,6 +252,8 @@ def parse_event(event: dict, own_account: str) -> ParsedMessage | None:
             ts=datetime.fromtimestamp(ts_ms / 1000, tz=UTC) if ts_ms else datetime.now(UTC),
             body=body,
             image=image,
+            platform_message_id=str(ts_ms) if ts_ms else None,
+            is_reply_to_ora=bool(own_account) and quoted_author == own_account,
         )
     except Exception:
         log.exception("unparseable envelope, skipping")
@@ -383,8 +418,9 @@ class SignalObserver:
         await self._store.execute(
             """INSERT INTO messages
                (platform, conversation_id, workspace, sender_id, person_id,
-                is_ora, ts, body, body_len, media_sha256)
-               VALUES ($1,$2,$3,$4,$5,FALSE,$6,$7,$8,$9)""",
+                is_ora, ts, body, body_len, media_sha256, platform_message_id,
+                is_reply_to_ora)
+               VALUES ($1,$2,$3,$4,$5,FALSE,$6,$7,$8,$9,$10,$11)""",
             "signal",
             parsed.conversation_id,
             self._config.workspace,
@@ -394,6 +430,8 @@ class SignalObserver:
             body,
             len(body),
             media_sha256,
+            parsed.platform_message_id,
+            parsed.is_reply_to_ora,
         )
         self._sink.event(
             "OBSERVE",

@@ -44,6 +44,9 @@ from loop import (
     tracing,
     windows,
 )
+from loop import (
+    route as route_mod,
+)
 from loop.config import Config, Room, load_config
 from loop.logging import LogSink
 from loop.memory import HonchoClient
@@ -82,6 +85,33 @@ def is_tagged(body: str, ora_ids: tuple[str, ...] = ()) -> bool:
     if TAG_PATTERN.search(body):
         return True
     return any(i and i in body for i in ora_ids)
+
+
+URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+
+# 天氣 / 落雨 / 幾度 are how this room actually asks, far more often than the
+# English words — a weather trigger that only matched English would miss the
+# question nearly every time it is asked here.
+_WEATHER_WORDS = (
+    "weather", "rain", "raining", "forecast", "temperature", "typhoon", "humid",
+    "天氣", "落雨", "落唔落雨", "幾度", "打風", "氣溫", "天氣點",
+)
+_TOMORROW_WORDS = ("tomorrow", "聽日", "明日", "明天")
+
+
+def _first_url(text: str) -> str | None:
+    match = URL_PATTERN.search(text or "")
+    return match.group(0) if match else None
+
+
+def _weather_when(text: str) -> str | None:
+    """`"tomorrow"` / `"now"` / `None`. Returning `None` matters as much as
+    the other two: running a weather lookup on every message would put an
+    unasked-for forecast in front of every judgement."""
+    lowered = (text or "").lower()
+    if not any(word in lowered for word in _WEATHER_WORDS):
+        return None
+    return "tomorrow" if any(word in lowered for word in _TOMORROW_WORDS) else "now"
 
 
 @dataclass
@@ -214,6 +244,7 @@ class Loop:
         honcho: Any | None = None,
         search_provider: Any | None = None,
         presenter: Any | None = None,
+        weather_fn: Any | None = None,
     ) -> None:
         self._config = config
         self._store = store
@@ -226,6 +257,7 @@ class Loop:
         self._honcho = honcho
         self._search = search_provider
         self._presenter = presenter
+        self._weather = weather_fn
         self._ora_ids: tuple[str, ...] = ()
         self._fed_through = 0
         self._warned_no_home = False
@@ -357,6 +389,46 @@ class Loop:
         self._ora_ids = tuple(dict.fromkeys(i for i in ids if i))
         return self._ora_ids
 
+    async def _tools_for(self, transcript: list[TranscriptRow], text: str = "") -> Any:
+        """Run the toolbox over whatever the room is actually asking.
+
+        On the tag path the question is the tagged message. On the ambient
+        path nobody addressed Ora, so the question has to be read out of the
+        room's own recent lines — that is the whole difference between
+        answering when called and noticing something worth answering.
+
+        Intents are extracted, not chosen by the model: `loop/model.py` is a
+        single-shot JSON client with no tool-calling, so the lookup happens
+        before the turn and its result is rendered in. The model cannot go
+        fishing, and equally cannot invent a lookup that never ran.
+        """
+        from loop import tools as tools_mod
+
+        recent = "\n".join(r.body for r in transcript[-6:] if not r.is_ora)
+        question = text or recent
+        intents = intent.extract(
+            question,
+            default_origin=self._config.env.ora_default_origin,
+            transcript_text=recent,
+        )
+        url = _first_url(question)
+        weather_when = _weather_when(question)
+        if not (intents.route or intents.search or url or weather_when):
+            return None
+        return await tools_mod.run(
+            route_query=(
+                (intents.route.origin, intents.route.destination) if intents.route else None
+            ),
+            route_mode=intents.route.mode if intents.route else "TRANSIT",
+            route_api_key=self._config.env.google_map_api_key,
+            route_fn=route_mod.route,
+            search_query=intents.search,
+            search_provider=self._search,
+            fetch_url=url,
+            weather_when=weather_when,
+            weather_fn=self._weather,
+        )
+
     async def _show(self, text: str, room: Room) -> None:
         """Put a line on Ora's face.
 
@@ -451,6 +523,11 @@ class Loop:
 
         notes = await _open_notes(self._store, self._config.workspace)
         recalled = await self._recall(transcript)
+        # The ambient turn gets the same tools as the tag path. Without them
+        # it can only answer from memory — and demo step 1 is exactly the
+        # case where the group asks each other a question, nobody tags Ora,
+        # and the useful answer needs the world, not the transcript.
+        tool_run = await self._tools_for(transcript)
         result = await decide_turn.decide(
             model=self._model,
             config=self._config,
@@ -469,6 +546,7 @@ class Loop:
             loop_decision_writers=("participation", "proactive_act", "tag"),
             self_card_conclusions=recalled.self_conclusions,
             peer_cards=recalled.peer_facts,
+            tool_run=tool_run,
         )
         self._sink.event("TURN", room.label, result.verdict, platform=room.platform,
                          error=result.verdict == "failed")
