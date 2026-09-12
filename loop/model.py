@@ -65,7 +65,7 @@ class ModelClient:
         reasoning_effort: str,
         platform: str | None = None,
         conversation_id: str | None = None,
-        max_tokens: int = 400,
+        max_tokens: int = 4000,
         temperature: float = 0.0,
         timeout_seconds: float | None = None,
     ) -> ModelCompletion:

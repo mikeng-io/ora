@@ -18,6 +18,12 @@ class Person:
     name: str
     signal: str = ""
     whatsapp: str = ""
+    # WhatsApp delivers `sender_jid` as a LID (`2702…@lid`), not the phone
+    # jid, so inbound resolution misses on `whatsapp` alone — measured live
+    # on the first real message. Both are indexed for resolve(); reverse()
+    # still returns `whatsapp`, because an outbound mention has to carry the
+    # phone form to render as a name in the room.
+    whatsapp_lid: str = ""
 
 
 def load_people(path: str | Path = "people.toml") -> list[Person]:
@@ -31,6 +37,7 @@ def load_people(path: str | Path = "people.toml") -> list[Person]:
             name=row["name"],
             signal=row.get("signal", ""),
             whatsapp=row.get("whatsapp", ""),
+            whatsapp_lid=row.get("whatsapp_lid", ""),
         )
         for row in data.get("person", [])
     ]
@@ -45,6 +52,8 @@ class PeopleDirectory:
                 self._by_platform_id[("signal", person.signal)] = person
             if person.whatsapp:
                 self._by_platform_id[("whatsapp", person.whatsapp)] = person
+            if person.whatsapp_lid:
+                self._by_platform_id[("whatsapp", person.whatsapp_lid)] = person
             self._by_name[person.name] = person
 
     def resolve(self, platform: str, sender_id: str) -> Person | None:

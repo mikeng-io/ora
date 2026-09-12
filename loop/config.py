@@ -89,6 +89,7 @@ class Env:
     model: str = ""
     reasoning_gate: str = "none"
     reasoning_turn: str = "low"
+    google_map_api_key: str = ""
     database_url: str = ""
     ora_log: str = "./ora.log"
     ora_tz: str = "Asia/Hong_Kong"
@@ -106,6 +107,7 @@ class Env:
             model=os.environ.get("MODEL", ""),
             reasoning_gate=os.environ.get("REASONING_GATE", "none"),
             reasoning_turn=os.environ.get("REASONING_TURN", "low"),
+            google_map_api_key=os.environ.get("GOOGLE_MAP_API_KEY", ""),
             database_url=os.environ.get("DATABASE_URL", ""),
             ora_log=os.environ.get("ORA_LOG", "./ora.log"),
             ora_tz=os.environ.get("ORA_TZ", "Asia/Hong_Kong"),

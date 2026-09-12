@@ -10,7 +10,7 @@ what is unresolved (notes with closing conditions), and decides — with a
 record of her own decisions — whether and when to speak.
 
 Built for the AI Tinkerers "Agents, Everywhere" hackathon (Cyberport,
-2026-09-12), distilled from [the reference project](https://github.com/mikeng-io)'s
+2026-09-12), distilled from an earlier private project's
 ambient-loop bundle to the smallest scope that still closes the loop. The
 loop, the demo, and the full provenance are below.
 
