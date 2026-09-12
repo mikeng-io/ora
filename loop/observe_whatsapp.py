@@ -233,11 +233,22 @@ class ParsedMessage:
 def _quoted_is_ora(quoted: Any) -> bool:
     """Whether `quoted` (the event's own `"quoted"` field) points at a
     message Ora herself sent. See the module docstring: the populated shape
-    is UNVERIFIED, so this reads defensively rather than asserting one
-    layout."""
+    Field names are now MEASURED, not guessed: the bridge builds this object
+    as `{id, participant_jid, participant_phone, participant_lid,
+    timestamp_ms, text}`. The first cut read `sender_jid`/`sender_phone`,
+    which exist on the message itself but never on its quote — so every
+    reply to Ora evaluated false and the reply path never fired once."""
     if not isinstance(quoted, dict):
         return False
-    for key in ("sender_jid", "sender_phone", "participant", "author"):
+    for key in (
+        "participant_jid",
+        "participant_phone",
+        "participant_lid",
+        "sender_jid",
+        "sender_phone",
+        "participant",
+        "author",
+    ):
         value = quoted.get(key)
         if not isinstance(value, str) or not value:
             continue

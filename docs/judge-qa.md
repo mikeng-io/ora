@@ -288,8 +288,9 @@ endpoint.
 the relevance gate, the participation turn, the proactive decide/act pair,
 the orient stage (standing fold, note extraction, curation), and the tag
 path. The six demo steps all depend on these. `tests/test_journey.py` has
-six strict-xfail markers — one per step — and a marker that is still
-`xfail` means that step has not been proved.
+six strict-xfail markers — one per step. Those markers have now been
+removed because all six pass; they pass against a fake model, so they
+prove the stages wire together, not that the demo ran live.
 
 **Not built at all:** Discord, location or presence, local inference,
 voice. If you've seen those in an earlier project of mine, they are not in

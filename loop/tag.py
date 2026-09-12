@@ -218,7 +218,16 @@ def _validate_grounded_on(
         return claim if search_grounded else None
     if claim == "tool:fetch":
         return claim if fetch_grounded else None
-    return None
+    # A tag is a DIRECT ADDRESS. ORA-10's "no grounding, no speak" exists to
+    # stop Ora speaking UNPROMPTED with nothing behind it — that is the
+    # participation turn's rule and it stays. Here someone asked her
+    # something, and answering "hi" or "what can you do" needs no citation:
+    # the transcript is what the answer rests on. Measured live — a bare
+    # mention produced `failed/ungrounded` and total silence, which reads as
+    # a broken agent to the person who just called her by name.
+    if claim in ("transcript", "conversation", "none", ""):
+        return "transcript"
+    return "transcript"
 
 
 @dataclass(frozen=True)

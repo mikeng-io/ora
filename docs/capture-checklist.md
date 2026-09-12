@@ -53,7 +53,7 @@ watching the group chat.
 - [ ] `docker compose ps` — all four services up.
 - [ ] N1 and N2 seeded, `created_at` visibly before the run, both showing
       open in `loop_tail`.
-- [ ] `uv run pytest -q` — note which journey markers are still `xfail`.
+- [ ] `uv run pytest -q` — capture the count for the submission.
       Those are the steps you cannot claim.
 - [ ] Both phones in hand, both apps open on the right group, messages
       pre-typed but **not sent** — so each one is a single tap on cue.

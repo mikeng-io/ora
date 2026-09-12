@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from loop import (
+    act,
     decide_gate,
     decide_proactive,
     decide_turn,
@@ -104,7 +105,7 @@ async def _rows_since(
 ) -> list[Any]:
     return await store.fetch(
         """SELECT id, sender_id, person_id, is_ora, ts, body, media_sha256,
-                  COALESCE(is_reply_to_ora, FALSE) AS is_reply_to_ora
+                  COALESCE(is_reply_to_ora, FALSE) AS is_reply_to_ora, platform_message_id
              FROM messages
             WHERE platform = $1 AND conversation_id = $2 AND id > $3
             ORDER BY id ASC
@@ -303,7 +304,13 @@ class Loop:
                                 room.platform, room.conversation_id
                             ) as held:
                                 if held:
-                                    await self._run_tag(room, now, tagged["body"] or "")
+                                    await self._react(room, tagged, "👀")
+                                    ok = await self._run_tag(
+                                        room, now, tagged["body"] or ""
+                                    )
+                                    await self._react(
+                                        room, tagged, "✅" if ok else "⚠️"
+                                    )
                         state.pending_since = None
                         state.pending_rows.clear()
                     continue
@@ -392,6 +399,31 @@ class Loop:
             store=self._store,
             workspace=self._config.workspace,
         )
+
+    async def _react(self, room: Room, row: Any, emoji: str) -> None:
+        """Put an emoji on the message being worked on.
+
+        This is the only feedback a person gets between sending and being
+        answered. Without it a tagged user watches a silent chat for several
+        seconds and concludes the agent is broken — on stage that reads as a
+        dead demo, which is why it is worth a round trip.
+
+        Never raises and never blocks the reply: a reaction that fails costs
+        nothing, an answer that fails costs the turn.
+        """
+        message_id = row.get("platform_message_id") if hasattr(row, "get") else None
+        if not message_id:
+            return
+        with contextlib.suppress(Exception):
+            await act.react(
+                self._config,
+                room.platform,
+                room.conversation_id,
+                emoji,
+                platform_message_id=str(message_id),
+                author=row["sender_id"],
+                store=self._store,
+            )
 
     async def _show(self, text: str, room: Room) -> None:
         """Put a line on Ora's face.
@@ -517,7 +549,7 @@ class Loop:
             await self._show(result.text or "", room)
         await self._fold(room, now)
 
-    async def _run_tag(self, room: Room, now: datetime, tagged_text: str = "") -> None:
+    async def _run_tag(self, room: Room, now: datetime, tagged_text: str = "") -> bool:
         transcript = await _transcript(self._store, room, self._people)
         standing = await _standing(self._store, room)
         notes = await _open_notes(self._store, self._config.workspace)
@@ -549,6 +581,7 @@ class Loop:
             self._room_state(room).last_spoke_at = now
             await self._show(result.text or "", room)
         await self._fold(room, now)
+        return result.verdict == "replied"
 
     async def _fold(self, room: Room, now: datetime) -> None:
         """Orient: fold the room's position forward, then look for notes.

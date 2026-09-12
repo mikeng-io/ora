@@ -79,3 +79,17 @@ decides is built on the day (event-day, source `—`).
 | `tests/test_decide_turn.py` | event-day | new — 18 tests incl. the ungrounded-speak brake | — | mike | 2026-09-12 |
 | `loop/tag.py` | event-day | new — tag path; `grounded_on` validated against tool reality, never trusted from model JSON | — | mike | 2026-09-12 |
 | `tests/test_tag.py` | event-day | new — 14 tests incl. false-grounding rejection | — | mike | 2026-09-12 |
+| `loop/loop.py` | event-day | new — the runtime: observers, per-room gate/turn, tag+reply trigger, proactive heartbeat | — | mike | 2026-09-12 |
+| `loop/orient.py` | event-day | new — standing fold, note proposal, curation | — | mike | 2026-09-12 |
+| `loop/decide_proactive.py` | event-day | new — proactive decide/act; strike rule with backoff | — | mike | 2026-09-12 |
+| `loop/toolcall.py` | event-day | new — the agentic tool loop; model chooses its own tools | — | mike | 2026-09-12 |
+| `loop/tools.py` | event-day | new — shared tool result rendering + grounding vocabulary | — | mike | 2026-09-12 |
+| `loop/weather.py` | event-day | adapted from an earlier private project's HKO client; re-verified against the live keyless API today | — | mike | 2026-09-12 |
+| `loop/recall.py` | event-day | new — Honcho read/write adapter (feed at Observe, cards at Decide) | — | mike | 2026-09-12 |
+| `loop/windows.py` | event-day | new — durable cooldown, bounded window, per-room re-entrancy guard | — | mike | 2026-09-12 |
+| `loop/tracing.py` | event-day | new — Langfuse tracing, optional, phone numbers masked | — | mike | 2026-09-12 |
+| `loop/present.py` | event-day | new — SSE broadcaster for the on-stage face | — | mike | 2026-09-12 |
+| `loop/intent.py` | event-day | new — regex intent extraction; **superseded and deleted** once real tool calling landed | — | mike | 2026-09-12 |
+| `web/index.html` | event-day | new — Live2D face; pixi-live2d-display via SRI-pinned CDN, fallback orb, browser speech | — | mike | 2026-09-12 |
+| `tests/test_orient.py`, `test_decide_proactive.py`, `test_present.py`, `test_recall.py`, `test_tracing.py`, `test_windows.py`, `test_intent.py`, `test_weather.py`, `test_observe_reply.py` | event-day | new | — | mike | 2026-09-12 |
+| `docs/narrative.md`, `demo-plan.md`, `judge-qa.md`, `what-ships-today.md`, `slides.md`, `architecture-visual.md`, `capture-checklist.md`, `recording-for-teammates.md`, `README.md` | event-day | new — submission package | — | mike | 2026-09-12 |

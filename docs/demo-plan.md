@@ -2,7 +2,8 @@
 
 One scenario. It runs the same way in rehearsal, in the video, and live on
 stage. It is frozen as data in [`cases/journey.yaml`](../cases/journey.yaml)
-and as six `xfail(strict=True)` markers in `tests/test_journey.py` — those
+and as six tests in `tests/test_journey.py` (their `xfail` markers removed
+once each passed) — those
 markers are the scoreboard. The exact messages, timings and verification
 queries are in [`RUNBOOK.md`](../RUNBOOK.md); this document is the version
 you read before walking on stage.
@@ -71,7 +72,7 @@ Phones are senders only. They never appear on screen.
 ### Pre-flight, in order
 
 ```sh
-uv run ruff check . && uv run pytest -q     # green, and note which journey markers are still xfail
+uv run ruff check . && uv run pytest -q     # green: the whole suite, six journey steps included
 docker compose ps                           # postgres, honcho, signal-cli, whatsapp-bridge all up
 python -m loop_tail                         # N1 and N2 visible, both open
 # send one throwaway message in each room, confirm two OBSERVE lines appear, delete nothing

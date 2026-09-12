@@ -10,13 +10,19 @@ show-and-tell:
 
 ```sh
 ls loop/                                   # which stages exist
-uv run ruff check . && uv run pytest -q    # note how many journey markers are still xfail
+uv run ruff check . && uv run pytest -q    # the suite, including the six journey steps
 python -m loop_tail                        # the live rows, if the stack is up
 ```
 
-At the snapshot: `199 passed, 9 skipped, **6 xfailed**` — all six journey
-markers still `xfail`, meaning **no demo step has been proved end to end
-yet.** That number is the fastest honest answer to "how much works?"
+At the snapshot: `362 passed, 9 skipped, **0 xfailed**` — the six journey
+steps now pass, and their `xfail(strict=True)` markers have been removed.
+
+Read that precisely, because the distinction is the honest part. Those six
+tests run against a **fake model and an in-memory store**: they prove the
+stages wire together and that each step's rows land as specified. They do
+**not** prove the demo ran live. What has been proved live, by hand, is in
+§1 below — and that list is the stronger claim, because it was measured
+against the real Signal and WhatsApp groups rather than against fakes.
 
 ---
 
